@@ -13,9 +13,18 @@
         "firebase-debug.log",
         "firebase-debug.*.log",
         "*.local"
+      ],
+      "predeploy": [
+        "yarn --cwd kateri-monorepo workspace @kateri/functions build"
       ]
     }
   ],
+  "hosting": {
+    "public": "kateri-monorepo/packages/web/dist",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [{ "source": "**", "destination": "/index.html" }],
+    "predeploy": ["yarn --cwd kateri-monorepo workspace @kateri/web build"]
+  },
   "emulators": {
     "auth": {
       "port": 9000

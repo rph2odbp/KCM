@@ -1,6 +1,6 @@
 import * as functions from 'firebase-functions'
 import * as admin from 'firebase-admin'
-import * as cors from 'cors'
+import cors from 'cors'
 // import { validateCamper, validatePayment } from '@kateri/shared'
 
 // Initialize Firebase Admin SDK

@@ -17,7 +17,7 @@
     "start:emulators": "firebase emulators:start --only firestore,auth,storage",
     "clean": "yarn workspaces foreach -v run clean",
     "workspace:shared": "yarn workspace @kateri/shared",
-    "workspace:web": "yarn workspace @kateri/web", 
+    "workspace:web": "yarn workspace @kateri/web",
     "workspace:functions": "yarn workspace @kateri/functions"
   },
   "devDependencies": {
