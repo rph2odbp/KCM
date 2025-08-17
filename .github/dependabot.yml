@@ -1,0 +1,85 @@
+version: 2
+updates:
+  # Enable version updates for npm in root
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "rph2odbp"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+
+  # Enable version updates for npm in monorepo root
+  - package-ecosystem: "npm"
+    directory: "/kateri-monorepo"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "rph2odbp"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+
+  # Enable version updates for shared package
+  - package-ecosystem: "npm"
+    directory: "/kateri-monorepo/packages/shared"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "rph2odbp"
+    commit-message:
+      prefix: "deps(shared)"
+      include: "scope"
+
+  # Enable version updates for web package
+  - package-ecosystem: "npm"
+    directory: "/kateri-monorepo/packages/web"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "rph2odbp"
+    commit-message:
+      prefix: "deps(web)"
+      include: "scope"
+
+  # Enable version updates for functions package
+  - package-ecosystem: "npm"
+    directory: "/kateri-monorepo/packages/functions"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "rph2odbp"
+    commit-message:
+      prefix: "deps(functions)"
+      include: "scope"
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "rph2odbp"
+    commit-message:
+      prefix: "ci"
+      include: "scope"

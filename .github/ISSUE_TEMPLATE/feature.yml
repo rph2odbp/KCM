@@ -1,0 +1,136 @@
+name: ✨ Feature Request
+description: Suggest a new feature or enhancement for KCM
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a new feature! Please provide detailed information to help us understand your request.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve? What is the current limitation?
+      placeholder: Describe the problem or limitation you're experiencing
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like to see implemented
+      placeholder: A clear and concise description of what you want to happen
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternative Solutions
+      description: Have you considered any alternative solutions or workarounds?
+      placeholder: Describe any alternatives you've considered
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component/Area
+      description: Which part of the system would this feature affect?
+      options:
+        - Web App (Frontend)
+        - Firebase Functions (Backend)
+        - Authentication & User Management
+        - Medical Records (MAR)
+        - Registration System
+        - Payment Processing
+        - Photo Gallery & Media
+        - Reports & Analytics
+        - AI Features
+        - CI/CD & DevOps
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: user_type
+    attributes:
+      label: Primary User Type
+      description: Who would primarily benefit from this feature?
+      options:
+        - Camp Administrators
+        - Medical Staff
+        - Camp Staff/Counselors
+        - Parents/Guardians
+        - System Administrators/Developers
+        - All Users
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      description: Define what success looks like for this feature
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+        - [ ] Criterion 3
+    validations:
+      required: true
+
+  - type: textarea
+    id: mockups
+    attributes:
+      label: Mockups/Wireframes
+      description: If applicable, add mockups, wireframes, or reference designs
+      placeholder: Drag and drop images here or provide links to designs
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority Level
+      description: How important is this feature?
+      options:
+        - Critical (Blocking core functionality)
+        - High (Important for user experience)
+        - Medium (Would improve the system)
+        - Low (Nice to have)
+    validations:
+      required: true
+
+  - type: textarea
+    id: risks
+    attributes:
+      label: Potential Risks/Concerns
+      description: Are there any security, privacy, or technical concerns to consider?
+      placeholder: |
+        Consider:
+        - Medical data privacy implications
+        - Security considerations
+        - Performance impact
+        - Compliance requirements
+        - Integration complexity
+
+  - type: textarea
+    id: business_value
+    attributes:
+      label: Business Value
+      description: What value would this feature provide to camp operations?
+      placeholder: Describe the operational benefits or improvements this would bring
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      options:
+        - label: I have searched existing issues to ensure this is not a duplicate
+          required: true
+        - label: I have considered the security and privacy implications
+          required: true
+        - label: I have defined clear acceptance criteria
+          required: true
+        - label: I understand this is a request and may not be implemented immediately
+          required: true

@@ -1,0 +1,26 @@
+* text=auto eol=lf
+
+# Images
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.gif binary
+*.ico binary
+*.svg binary
+
+# Fonts
+*.woff binary
+*.woff2 binary
+*.eot binary
+*.ttf binary
+*.otf binary
+
+# Archives
+*.zip binary
+*.tar binary
+*.tar.gz binary
+*.tar.xz binary
+*.rar binary
+
+# Documents
+*.pdf binary
