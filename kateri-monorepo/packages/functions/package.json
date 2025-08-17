@@ -19,7 +19,7 @@
     "@kateri/shared": "workspace:*",
     "firebase-admin": "^13.4.0",
     "firebase-functions": "^4.8.0",
-    "@adyen/api-library": "^15.1.0",
+    "@adyen/api-library": "^28.1.0",
     "cors": "^2.8.5"
   },
   "devDependencies": {
