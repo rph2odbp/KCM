@@ -1,0 +1,68 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "campers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "guardianId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "registrationStatus",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "medical_records",
+      "queryScope": "COLLECTION", 
+      "fields": [
+        {
+          "fieldPath": "camperId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "medication_logs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "camperId", 
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "administeredAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "guardianId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
+
+// Note: Additional composite indexes will be added as needed during development
+// Firebase will suggest indexes based on actual query patterns

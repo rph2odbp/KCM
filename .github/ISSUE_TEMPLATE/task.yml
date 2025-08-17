@@ -1,0 +1,154 @@
+name: 📋 Task/Chore
+description: Track a development task, chore, or maintenance item
+title: "[Task]: "
+labels: ["task", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for development tasks, maintenance items, technical debt, or chores that need to be tracked.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Task Description
+      description: Clearly describe what needs to be done
+      placeholder: Provide a detailed description of the task
+    validations:
+      required: true
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Task Type
+      description: What type of task is this?
+      options:
+        - Documentation Update
+        - Code Refactoring
+        - Technical Debt
+        - Configuration/Setup
+        - Testing
+        - Performance Optimization
+        - Security Enhancement
+        - Dependency Update
+        - Build/CI Improvement
+        - Monitoring/Logging
+        - Database Migration
+        - Other Maintenance
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component/Area
+      description: Which part of the system does this task affect?
+      options:
+        - Web App (Frontend)
+        - Firebase Functions (Backend)
+        - Shared Packages
+        - Database/Firestore
+        - CI/CD Pipeline
+        - Documentation
+        - Development Environment
+        - Security/Compliance
+        - Testing Infrastructure
+        - Build System
+        - Repository Management
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: definition_of_done
+    attributes:
+      label: Definition of Done
+      description: What criteria must be met for this task to be considered complete?
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+        - [ ] Criterion 3
+        - [ ] Tests pass
+        - [ ] Documentation updated
+        - [ ] Code reviewed
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context/Background
+      description: Provide any relevant context or background information
+      placeholder: Why is this task needed? What prompted it?
+
+  - type: textarea
+    id: technical_details
+    attributes:
+      label: Technical Details
+      description: Include any technical specifications, requirements, or constraints
+      placeholder: |
+        - Specific technologies or tools involved
+        - Performance requirements
+        - Compatibility considerations
+        - Technical constraints
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How urgent is this task?
+      options:
+        - Critical (Blocking other work)
+        - High (Should be done soon)
+        - Medium (Normal priority)
+        - Low (Can be done when time permits)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: effort
+    attributes:
+      label: Estimated Effort
+      description: How much effort do you estimate this will take?
+      options:
+        - XS (< 2 hours)
+        - S (2-8 hours)
+        - M (1-3 days)
+        - L (3-7 days)
+        - XL (1-2 weeks)
+        - XXL (2+ weeks)
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Are there any dependencies or blockers for this task?
+      placeholder: |
+        - Depends on issue #123
+        - Requires approval from team lead
+        - Needs external service setup
+
+  - type: textarea
+    id: resources
+    attributes:
+      label: Resources/References
+      description: Include any helpful links, documentation, or references
+      placeholder: |
+        - Documentation links
+        - Related issues or PRs
+        - External resources
+        - Code examples
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      options:
+        - label: I have clearly defined the task scope and requirements
+          required: true
+        - label: I have provided a clear definition of done
+          required: true
+        - label: I have identified any dependencies or blockers
+          required: true

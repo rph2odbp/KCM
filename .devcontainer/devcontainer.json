@@ -1,0 +1,98 @@
+{
+  "name": "KCM Development Environment",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
+  
+  "features": {
+    "ghcr.io/devcontainers/features/java:1": {
+      "version": "17",
+      "installMaven": false,
+      "installGradle": false
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "nodeGypDependencies": true,
+      "version": "20"
+    }
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.vscode-typescript-next",
+        "bradlc.vscode-tailwindcss",
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "ms-playwright.playwright",
+        "Firebase.firebase-vscode",
+        "ms-vscode.vscode-json",
+        "yzhang.markdown-all-in-one",
+        "streetsidesoftware.code-spell-checker",
+        "ms-vscode.vscode-jest"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": "explicit"
+        },
+        "typescript.preferences.importModuleSpecifier": "relative",
+        "javascript.preferences.importModuleSpecifier": "relative"
+      }
+    }
+  },
+
+  "forwardPorts": [
+    3000,
+    4000,
+    5173,
+    8080,
+    9099,
+    4400,
+    4500,
+    5001,
+    8085,
+    9000
+  ],
+
+  "portsAttributes": {
+    "3000": {
+      "label": "React Dev Server",
+      "onAutoForward": "notify"
+    },
+    "5173": {
+      "label": "Vite Dev Server",
+      "onAutoForward": "notify"
+    },
+    "4000": {
+      "label": "Firebase Emulator UI",
+      "onAutoForward": "notify"
+    },
+    "8080": {
+      "label": "Firebase Emulator Suite",
+      "onAutoForward": "silent"
+    },
+    "9099": {
+      "label": "Firestore Emulator",
+      "onAutoForward": "silent"
+    },
+    "5001": {
+      "label": "Functions Emulator",
+      "onAutoForward": "silent"
+    },
+    "9000": {
+      "label": "Auth Emulator",
+      "onAutoForward": "silent"
+    },
+    "8085": {
+      "label": "Storage Emulator",
+      "onAutoForward": "silent"
+    }
+  },
+
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+
+  "remoteUser": "node",
+
+  "mounts": [
+    "source=${localWorkspaceFolder}/.devcontainer/setup.sh,target=/tmp/setup.sh,type=bind,consistency=cached"
+  ]
+}

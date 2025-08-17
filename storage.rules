@@ -1,0 +1,60 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function hasRole(role) {
+      return isAuthenticated() && 
+             request.auth.token.get(role, false) == true;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Photo uploads - restricted access
+    match /photos/{photoId} {
+      // Only authenticated staff can upload photos
+      allow write: if hasRole('staff') || hasRole('admin');
+      
+      // Photos can be read based on permissions stored in Firestore
+      // This is a simplified rule - actual permissions should be checked against Firestore
+      allow read: if hasRole('staff') || hasRole('admin') || hasRole('guardian');
+    }
+
+    // Medical documents - highly restricted
+    match /medical/{camperId}/{document} {
+      allow read, write: if hasRole('medic') || hasRole('admin');
+    }
+
+    // User profile images
+    match /profiles/{userId}/{document} {
+      allow read, write: if isOwner(userId) || hasRole('admin');
+    }
+
+    // General documents
+    match /documents/{camperId}/{document} {
+      allow read: if hasRole('staff') || hasRole('admin');
+      allow write: if hasRole('admin');
+    }
+
+    // Default deny all other access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+/*
+TODO: Storage security rules refinement needed:
+1. Implement photo permission checking against Firestore
+2. Add file type and size validation
+3. Implement virus scanning integration
+4. Add audit logging for sensitive file access
+5. Implement GDPR-compliant deletion workflows
+*/
