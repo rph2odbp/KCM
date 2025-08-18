@@ -7,7 +7,8 @@ import './App.css'
 const queryClient = new QueryClient()
 
 function App() {
-  const [count, setCount] = useState(0)
+  // Placeholder state (reserved for future use)
+  const [_count, _setCount] = useState(0)
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -19,9 +20,15 @@ function App() {
           </header>
 
           <nav style={{ padding: '20px' }}>
-            <Link to="/" style={{ marginRight: '20px' }}>Home</Link>
-            <Link to="/campers" style={{ marginRight: '20px' }}>Campers</Link>
-            <Link to="/medical" style={{ marginRight: '20px' }}>Medical</Link>
+            <Link to="/" style={{ marginRight: '20px' }}>
+              Home
+            </Link>
+            <Link to="/campers" style={{ marginRight: '20px' }}>
+              Campers
+            </Link>
+            <Link to="/medical" style={{ marginRight: '20px' }}>
+              Medical
+            </Link>
             <Link to="/photos">Photos</Link>
           </nav>
 
@@ -53,7 +60,9 @@ function Home() {
         <li>Reports and analytics</li>
         <li>AI-powered features</li>
       </ul>
-      <p><strong>Status:</strong> Development environment - Firebase emulators ready</p>
+      <p>
+        <strong>Status:</strong> Development environment - Firebase emulators ready
+      </p>
     </div>
   )
 }
@@ -63,7 +72,9 @@ function CampersPage() {
     <div>
       <h2>Camper Management</h2>
       <p>Manage camper registration, profiles, and rosters.</p>
-      <p><em>Feature coming soon...</em></p>
+      <p>
+        <em>Feature coming soon...</em>
+      </p>
     </div>
   )
 }
@@ -73,7 +84,9 @@ function MedicalPage() {
     <div>
       <h2>Medical Administration Records (MAR)</h2>
       <p>Track medications, incidents, and medical history.</p>
-      <p><em>Feature coming soon...</em></p>
+      <p>
+        <em>Feature coming soon...</em>
+      </p>
     </div>
   )
 }
@@ -83,7 +96,9 @@ function PhotosPage() {
     <div>
       <h2>Photo Gallery</h2>
       <p>Secure photo sharing with permission controls.</p>
-      <p><em>Feature coming soon...</em></p>
+      <p>
+        <em>Feature coming soon...</em>
+      </p>
     </div>
   )
 }

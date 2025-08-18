@@ -32,36 +32,23 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onCamperUpdate = exports.dailyHealthCheck = exports.deleteUserData = exports.createUserProfile = exports.helloWorld = void 0;
-const functions = __importStar(require("firebase-functions"));
+exports.deleteUserData = exports.createUserProfile = void 0;
+const firebase_functions_1 = require("firebase-functions");
+const functionsV1 = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
-const cors_1 = __importDefault(require("cors"));
+const firestore_1 = require("firebase-admin/firestore");
 // import { validateCamper, validatePayment } from '@kateri/shared'
 // Initialize Firebase Admin SDK
 admin.initializeApp();
-// Configure CORS
-const corsHandler = (0, cors_1.default)({ origin: true });
-// ============================================================================
-// Hello World Function (for testing)
-// ============================================================================
-exports.helloWorld = functions.https.onRequest((request, response) => {
-    corsHandler(request, response, () => {
-        functions.logger.info('Hello world function called', { structuredData: true });
-        response.json({
-            message: 'Hello from KCM Firebase Functions!',
-            timestamp: new Date().toISOString(),
-            environment: process.env.NODE_ENV || 'development'
-        });
-    });
-});
+const db = (0, firestore_1.getFirestore)('kcm-db');
+// Gen 1 auth triggers only in this codebase
 // ============================================================================
 // User Management Functions
 // ============================================================================
-exports.createUserProfile = functions.auth.user().onCreate(async (user) => {
+exports.createUserProfile = functionsV1.auth
+    .user()
+    .onCreate(async (user) => {
     try {
         const userProfile = {
             id: user.uid,
@@ -71,28 +58,30 @@ exports.createUserProfile = functions.auth.user().onCreate(async (user) => {
             role: 'guardian', // Default role
             phoneNumber: user.phoneNumber || '',
             isActive: true,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            createdAt: firestore_1.FieldValue.serverTimestamp(),
+            updatedAt: firestore_1.FieldValue.serverTimestamp(),
         };
-        await admin.firestore().collection('users').doc(user.uid).set(userProfile);
-        functions.logger.info(`User profile created for ${user.email}`, { uid: user.uid });
+        await db.collection('users').doc(user.uid).set(userProfile);
+        firebase_functions_1.logger.info(`User profile created for ${user.email}`, { uid: user.uid });
     }
     catch (error) {
-        functions.logger.error('Error creating user profile', error);
+        firebase_functions_1.logger.error('Error creating user profile', error);
     }
 });
-exports.deleteUserData = functions.auth.user().onDelete(async (user) => {
+exports.deleteUserData = functionsV1.auth
+    .user()
+    .onDelete(async (user) => {
     try {
         // Delete user profile
-        await admin.firestore().collection('users').doc(user.uid).delete();
+        await db.collection('users').doc(user.uid).delete();
         // TODO: Implement GDPR-compliant data deletion
         // - Remove or anonymize related camper records
         // - Handle payment data according to financial regulations
         // - Clean up photo permissions and uploads
-        functions.logger.info(`User data cleanup initiated for ${user.email}`, { uid: user.uid });
+        firebase_functions_1.logger.info(`User data cleanup initiated for ${user.email}`, { uid: user.uid });
     }
     catch (error) {
-        functions.logger.error('Error during user data cleanup', error);
+        firebase_functions_1.logger.error('Error during user data cleanup', error);
     }
 });
 // ============================================================================
@@ -194,45 +183,5 @@ export const processPhotoUpload = functions.storage.object().onFinalize(async (o
   }
 })
 */
-// ============================================================================
-// Scheduled Functions
-// ============================================================================
-exports.dailyHealthCheck = functions.pubsub.schedule('0 6 * * *')
-    .timeZone('America/New_York')
-    .onRun(async (context) => {
-    try {
-        // TODO: Implement daily health checks
-        // 1. Check system status
-        // 2. Validate data integrity
-        // 3. Send admin notifications if needed
-        functions.logger.info('Daily health check completed', {
-            timestamp: context.timestamp
-        });
-    }
-    catch (error) {
-        functions.logger.error('Error during daily health check', error);
-    }
-});
-// ============================================================================
-// Database Triggers
-// ============================================================================
-exports.onCamperUpdate = functions.firestore
-    .document('campers/{camperId}')
-    .onUpdate(async (change, context) => {
-    try {
-        const before = change.before.data();
-        const after = change.after.data();
-        // TODO: Implement camper update logic
-        // 1. Log important changes
-        // 2. Send notifications to guardians
-        // 3. Update related records if needed
-        functions.logger.info('Camper updated', {
-            camperId: context.params.camperId,
-            changes: { before, after }
-        });
-    }
-    catch (error) {
-        functions.logger.error('Error handling camper update', error);
-    }
-});
+// (Gen 2 HTTPS/Scheduled/Firestore functions moved to @kateri/functions-gen2)
 //# sourceMappingURL=index.js.map

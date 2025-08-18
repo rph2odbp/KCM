@@ -1,70 +1,60 @@
-import * as functions from 'firebase-functions'
+import { logger } from 'firebase-functions'
+import * as functionsV1 from 'firebase-functions/v1'
 import * as admin from 'firebase-admin'
-import cors from 'cors'
+import { getFirestore, FieldValue } from 'firebase-admin/firestore'
 // import { validateCamper, validatePayment } from '@kateri/shared'
 
 // Initialize Firebase Admin SDK
 admin.initializeApp()
+const db = getFirestore('kcm-db')
 
-// Configure CORS
-const corsHandler = cors({ origin: true })
-
-// ============================================================================
-// Hello World Function (for testing)
-// ============================================================================
-
-export const helloWorld = functions.https.onRequest((request, response) => {
-  corsHandler(request, response, () => {
-    functions.logger.info('Hello world function called', { structuredData: true })
-    response.json({
-      message: 'Hello from KCM Firebase Functions!',
-      timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || 'development'
-    })
-  })
-})
+// Gen 1 auth triggers only in this codebase
 
 // ============================================================================
 // User Management Functions
 // ============================================================================
 
-export const createUserProfile = functions.auth.user().onCreate(async (user) => {
-  try {
-    const userProfile = {
-      id: user.uid,
-      email: user.email,
-      firstName: '',
-      lastName: '',
-      role: 'guardian', // Default role
-      phoneNumber: user.phoneNumber || '',
-      isActive: true,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+export const createUserProfile = functionsV1.auth
+  .user()
+  .onCreate(async (user: admin.auth.UserRecord) => {
+    try {
+      const userProfile = {
+        id: user.uid,
+        email: user.email,
+        firstName: '',
+        lastName: '',
+        role: 'guardian', // Default role
+        phoneNumber: user.phoneNumber || '',
+        isActive: true,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      }
+
+      await db.collection('users').doc(user.uid).set(userProfile)
+
+      logger.info(`User profile created for ${user.email}`, { uid: user.uid })
+    } catch (error) {
+      logger.error('Error creating user profile', error as any)
     }
+  })
 
-    await admin.firestore().collection('users').doc(user.uid).set(userProfile)
-    
-    functions.logger.info(`User profile created for ${user.email}`, { uid: user.uid })
-  } catch (error) {
-    functions.logger.error('Error creating user profile', error)
-  }
-})
+export const deleteUserData = functionsV1.auth
+  .user()
+  .onDelete(async (user: admin.auth.UserRecord) => {
+    try {
+      // Delete user profile
+      await db.collection('users').doc(user.uid).delete()
 
-export const deleteUserData = functions.auth.user().onDelete(async (user) => {
-  try {
-    // Delete user profile
-    await admin.firestore().collection('users').doc(user.uid).delete()
-    
-    // TODO: Implement GDPR-compliant data deletion
-    // - Remove or anonymize related camper records
-    // - Handle payment data according to financial regulations
-    // - Clean up photo permissions and uploads
-    
-    functions.logger.info(`User data cleanup initiated for ${user.email}`, { uid: user.uid })
-  } catch (error) {
-    functions.logger.error('Error during user data cleanup', error)
-  }
-})
+      // TODO: Implement GDPR-compliant data deletion
+      // - Remove or anonymize related camper records
+      // - Handle payment data according to financial regulations
+      // - Clean up photo permissions and uploads
+
+      logger.info(`User data cleanup initiated for ${user.email}`, { uid: user.uid })
+    } catch (error) {
+      logger.error('Error during user data cleanup', error as any)
+    }
+  })
 
 // ============================================================================
 // Payment Processing Functions (Adyen Integration)
@@ -171,48 +161,4 @@ export const processPhotoUpload = functions.storage.object().onFinalize(async (o
 })
 */
 
-// ============================================================================
-// Scheduled Functions
-// ============================================================================
-
-export const dailyHealthCheck = functions.pubsub.schedule('0 6 * * *')
-  .timeZone('America/New_York')
-  .onRun(async (context) => {
-    try {
-      // TODO: Implement daily health checks
-      // 1. Check system status
-      // 2. Validate data integrity
-      // 3. Send admin notifications if needed
-      
-      functions.logger.info('Daily health check completed', { 
-        timestamp: context.timestamp 
-      })
-    } catch (error) {
-      functions.logger.error('Error during daily health check', error)
-    }
-  })
-
-// ============================================================================
-// Database Triggers
-// ============================================================================
-
-export const onCamperUpdate = functions.firestore
-  .document('campers/{camperId}')
-  .onUpdate(async (change, context) => {
-    try {
-      const before = change.before.data()
-      const after = change.after.data()
-      
-      // TODO: Implement camper update logic
-      // 1. Log important changes
-      // 2. Send notifications to guardians
-      // 3. Update related records if needed
-      
-      functions.logger.info('Camper updated', { 
-        camperId: context.params.camperId,
-        changes: { before, after }
-      })
-    } catch (error) {
-      functions.logger.error('Error handling camper update', error)
-    }
-  })
+// (Gen 2 HTTPS/Scheduled/Firestore functions moved to @kateri/functions-gen2)

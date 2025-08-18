@@ -8,17 +8,22 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "yarn workspaces foreach -v run build",
-    "test": "yarn workspaces foreach -v run test",
-    "lint": "yarn workspaces foreach -v run lint",
-    "typecheck": "yarn workspaces foreach -v run typecheck",
+    "build": "yarn workspaces foreach -A -v run build",
+    "test": "yarn workspaces foreach -A -v run test",
+    "lint": "yarn workspaces foreach -A -v run lint",
+    "typecheck": "yarn workspaces foreach -A -v run typecheck",
     "format": "prettier --write \"**/*.{js,ts,tsx,json,md}\"",
     "start": "concurrently \"yarn workspace:web dev\" \"yarn workspace:functions serve\"",
     "start:emulators": "firebase emulators:start --only firestore,auth,storage",
-    "clean": "yarn workspaces foreach -v run clean",
+    "emulators:kill-ports": "bash scripts/kill-ports.sh",
+    "emulators:restart": "bash scripts/kill-ports.sh && yarn workspace @kateri/functions serve",
+    "clean": "yarn workspaces foreach -A -v run clean",
     "workspace:shared": "yarn workspace @kateri/shared",
     "workspace:web": "yarn workspace @kateri/web",
-    "workspace:functions": "yarn workspace @kateri/functions"
+    "workspace:functions": "yarn workspace @kateri/functions",
+    "workspace:functions-gen2": "yarn workspace @kateri/functions-gen2",
+    "deploy": "yarn dlx firebase-tools deploy --only functions,hosting --project kcm-firebase-b7d6a",
+    "emulators": "yarn dlx firebase-tools emulators:start --only firestore,auth,storage --project kcm-firebase-b7d6a"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.39.1",
@@ -28,6 +33,7 @@
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-import": "^2.29.1",
     "eslint-plugin-prettier": "^5.1.3",
+    "firebase-tools": "^13.29.0",
     "prettier": "^3.2.5",
     "turbo": "^1.12.4",
     "typescript": "^5.3.3"

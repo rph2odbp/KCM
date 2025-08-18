@@ -1,6 +1,3 @@
-import * as functions from 'firebase-functions';
-export declare const helloWorld: functions.HttpsFunction;
-export declare const createUserProfile: functions.CloudFunction<import("firebase-admin/auth").UserRecord>;
-export declare const deleteUserData: functions.CloudFunction<import("firebase-admin/auth").UserRecord>;
-export declare const dailyHealthCheck: functions.CloudFunction<unknown>;
-export declare const onCamperUpdate: functions.CloudFunction<functions.Change<functions.firestore.QueryDocumentSnapshot>>;
+import * as functionsV1 from 'firebase-functions/v1';
+export declare const createUserProfile: functionsV1.CloudFunction<import("firebase-admin/auth").UserRecord>;
+export declare const deleteUserData: functionsV1.CloudFunction<import("firebase-admin/auth").UserRecord>;
