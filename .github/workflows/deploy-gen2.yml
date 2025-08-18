@@ -1,0 +1,29 @@
+name: Deploy Gen2 Functions
+
+on:
+  workflow_dispatch: {}
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  deploy-gen2:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Enable Corepack
+        run: corepack enable
+      - name: Install
+        run: yarn --cwd kateri-monorepo install --immutable
+      - name: Deploy gen2 codebase
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          yarn dlx firebase-tools deploy --only functions:gen2 --project kcm-firebase-b7d6a --non-interactive
