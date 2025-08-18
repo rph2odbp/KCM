@@ -1,6 +1,6 @@
 {
   "projects": {
-    "default": "YOUR_PROJECT_ID",
+    "default": "kcm-firebase-b7d6a",
     "dev": "kateri-camp-dev",
     "staging": "kateri-camp-staging", 
     "prod": "kateri-camp-prod"

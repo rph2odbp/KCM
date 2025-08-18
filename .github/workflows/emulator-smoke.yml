@@ -1,0 +1,29 @@
+name: Emulator Smoke
+
+on:
+  workflow_dispatch: {}
+  pull_request:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Enable Corepack
+        run: corepack enable
+      - name: Install
+        run: yarn --cwd kateri-monorepo install --immutable
+      - name: Build functions
+        run: |
+          yarn --cwd kateri-monorepo workspace @kateri/functions-gen2 run build
+      - name: Run emulators smoke
+        env:
+          FB_PROJECT_ID: kcm-firebase-b7d6a
+          FB_REGION: us-central1
+          FB_DB_ID: kcm-db
+        run: |
+          yarn dlx firebase-tools emulators:exec --only functions,firestore --project kcm-firebase-b7d6a -- node kateri-monorepo/scripts/emulator-smoke.js

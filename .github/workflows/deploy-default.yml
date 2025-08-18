@@ -1,0 +1,36 @@
+name: Deploy Default Functions
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  deploy-default:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Enable Corepack (Yarn 4)
+        run: corepack enable
+
+      - name: Install workspace dependencies
+        run: yarn --cwd kateri-monorepo install --immutable
+      - name: Authenticate to Google Cloud (OIDC)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+      - name: Deploy default codebase
+        run: |
+          yarn dlx firebase-tools deploy \
+            --only functions:default \
+            --project kcm-firebase-b7d6a \
+            --non-interactive

@@ -1,0 +1,31 @@
+name: Cleanup Legacy Gen1 Functions
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Enable Corepack (Yarn 4)
+        run: corepack enable
+
+      - name: Delete legacy dailyHealthCheck (Gen1)
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          yarn dlx firebase-tools functions:delete dailyHealthCheck --region us-central1 --project kcm-firebase-b7d6a --force
+
+      - name: Deploy default codebase to finalize cleanup
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          yarn dlx firebase-tools deploy --only functions:default --project kcm-firebase-b7d6a --non-interactive --force

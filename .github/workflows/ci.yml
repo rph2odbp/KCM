@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -16,18 +16,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'yarn'
-          cache-dependency-path: 'kateri-monorepo/yarn.lock'
+          node-version: "20"
+          cache: "yarn"
+          cache-dependency-path: "kateri-monorepo/yarn.lock"
 
       - name: Install dependencies
         working-directory: kateri-monorepo
-        run: yarn install --frozen-lockfile
+        run: |
+          corepack enable
+          yarn install --immutable
 
       - name: Run lint
         working-directory: kateri-monorepo
@@ -38,18 +40,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'yarn'
-          cache-dependency-path: 'kateri-monorepo/yarn.lock'
+          node-version: "20"
+          cache: "yarn"
+          cache-dependency-path: "kateri-monorepo/yarn.lock"
 
       - name: Install dependencies
         working-directory: kateri-monorepo
-        run: yarn install --frozen-lockfile
+        run: |
+          corepack enable
+          yarn install --immutable
 
       - name: TypeCheck web package
         working-directory: kateri-monorepo
@@ -60,18 +64,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'yarn'
-          cache-dependency-path: 'kateri-monorepo/yarn.lock'
+          node-version: "20"
+          cache: "yarn"
+          cache-dependency-path: "kateri-monorepo/yarn.lock"
 
       - name: Install dependencies
         working-directory: kateri-monorepo
-        run: yarn install --frozen-lockfile
+        run: |
+          corepack enable
+          yarn install --immutable
 
       - name: TypeCheck functions package
         working-directory: kateri-monorepo
@@ -82,18 +88,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'yarn'
-          cache-dependency-path: 'kateri-monorepo/yarn.lock'
+          node-version: "20"
+          cache: "yarn"
+          cache-dependency-path: "kateri-monorepo/yarn.lock"
 
       - name: Install dependencies
         working-directory: kateri-monorepo
-        run: yarn install --frozen-lockfile
+        run: |
+          corepack enable
+          yarn install --immutable
 
       - name: TypeCheck shared package
         working-directory: kateri-monorepo
@@ -104,18 +112,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'yarn'
-          cache-dependency-path: 'kateri-monorepo/yarn.lock'
+          node-version: "20"
+          cache: "yarn"
+          cache-dependency-path: "kateri-monorepo/yarn.lock"
 
       - name: Install dependencies
         working-directory: kateri-monorepo
-        run: yarn install --frozen-lockfile
+        run: |
+          corepack enable
+          yarn install --immutable
 
       - name: Run web tests
         working-directory: kateri-monorepo
@@ -134,18 +144,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'yarn'
-          cache-dependency-path: 'kateri-monorepo/yarn.lock'
+          node-version: "20"
+          cache: "yarn"
+          cache-dependency-path: "kateri-monorepo/yarn.lock"
 
       - name: Install dependencies
         working-directory: kateri-monorepo
-        run: yarn install --frozen-lockfile
+        run: |
+          corepack enable
+          yarn install --immutable
 
       - name: Run functions tests
         working-directory: kateri-monorepo
@@ -164,18 +176,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'yarn'
-          cache-dependency-path: 'kateri-monorepo/yarn.lock'
+          node-version: "20"
+          cache: "yarn"
+          cache-dependency-path: "kateri-monorepo/yarn.lock"
 
       - name: Install dependencies
         working-directory: kateri-monorepo
-        run: yarn install --frozen-lockfile
+        run: |
+          corepack enable
+          yarn install --immutable
 
       - name: Run shared tests
         working-directory: kateri-monorepo
@@ -187,18 +201,20 @@ jobs:
     needs: [lint-repo, typecheck-web]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'yarn'
-          cache-dependency-path: 'kateri-monorepo/yarn.lock'
+          node-version: "20"
+          cache: "yarn"
+          cache-dependency-path: "kateri-monorepo/yarn.lock"
 
       - name: Install dependencies
         working-directory: kateri-monorepo
-        run: yarn install --frozen-lockfile
+        run: |
+          corepack enable
+          yarn install --immutable
 
       - name: Build web package
         working-directory: kateri-monorepo
@@ -217,18 +233,20 @@ jobs:
     needs: [lint-repo, typecheck-functions]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'yarn'
-          cache-dependency-path: 'kateri-monorepo/yarn.lock'
+          node-version: "20"
+          cache: "yarn"
+          cache-dependency-path: "kateri-monorepo/yarn.lock"
 
       - name: Install dependencies
         working-directory: kateri-monorepo
-        run: yarn install --frozen-lockfile
+        run: |
+          corepack enable
+          yarn install --immutable
 
       - name: Build functions package
         working-directory: kateri-monorepo

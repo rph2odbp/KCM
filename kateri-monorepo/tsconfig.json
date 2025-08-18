@@ -1,4 +1,10 @@
 {
+  "files": [],
+  "references": [
+    { "path": "./packages/functions" },
+    { "path": "./packages/web" },
+    { "path": "./packages/shared" }
+  ],
   "compilerOptions": {
     "target": "ES2020",
     "lib": ["ES2020"],
@@ -31,12 +37,5 @@
       "@kateri/shared/*": ["./packages/shared/src/*"]
     }
   },
-  "include": [],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "lib",
-    "build",
-    "coverage"
-  ]
+  "exclude": ["node_modules", "dist", "lib", "build", "coverage"]
 }
