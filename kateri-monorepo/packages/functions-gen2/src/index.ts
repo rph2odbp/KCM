@@ -34,3 +34,6 @@ export const onCamperUpdatedV2 = onDocumentUpdated(
     logger.info('Camper updated', { camperId: event.params.camperId, changes: { before, after } })
   },
 )
+
+// Auth (Gen 2) triggers
+export { createUserProfileV2, deleteUserDataV2 } from './auth.migration'

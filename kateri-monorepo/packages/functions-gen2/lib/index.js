@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onCamperUpdatedV2 = exports.dailyHealthCheckV2 = exports.helloWorld = void 0;
+exports.deleteUserDataV2 = exports.createUserProfileV2 = exports.onCamperUpdatedV2 = exports.dailyHealthCheckV2 = exports.helloWorld = void 0;
 const firebase_functions_1 = require("firebase-functions");
 const https_1 = require("firebase-functions/v2/https");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
@@ -63,4 +63,8 @@ exports.onCamperUpdatedV2 = (0, firestore_1.onDocumentUpdated)({ region: 'us-cen
     const after = event.data.after.data();
     firebase_functions_1.logger.info('Camper updated', { camperId: event.params.camperId, changes: { before, after } });
 });
+// Auth (Gen 2) triggers
+var auth_migration_1 = require("./auth.migration");
+Object.defineProperty(exports, "createUserProfileV2", { enumerable: true, get: function () { return auth_migration_1.createUserProfileV2; } });
+Object.defineProperty(exports, "deleteUserDataV2", { enumerable: true, get: function () { return auth_migration_1.deleteUserDataV2; } });
 //# sourceMappingURL=index.js.map

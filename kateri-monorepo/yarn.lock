@@ -1755,7 +1755,7 @@ __metadata:
     "@types/node": "npm:^24.3.0"
     cors: "npm:^2.8.5"
     firebase-admin: "npm:^12.0.0"
-    firebase-functions: "npm:^6.0.0"
+    firebase-functions: "npm:^6.2.0"
     typescript: "npm:^5.3.3"
   languageName: unknown
   linkType: soft
@@ -5735,7 +5735,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"firebase-functions@npm:^6.0.0":
+"firebase-functions@npm:^6.0.0, firebase-functions@npm:^6.2.0":
   version: 6.4.0
   resolution: "firebase-functions@npm:6.4.0"
   dependencies:
@@ -11141,11 +11141,11 @@ __metadata:
 
 "typescript@patch:typescript@npm%3A^5.3.3#optional!builtin<compat/typescript>":
   version: 5.9.2
-  resolution: "typescript@patch:typescript@npm%3A5.9.2#optional!builtin<compat/typescript>::version=5.9.2&hash=d69c25"
+  resolution: "typescript@patch:typescript@npm%3A5.9.2#optional!builtin<compat/typescript>::version=5.9.2&hash=5786d5"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 10c0/66fc07779427a7c3fa97da0cf2e62595eaff2cea4594d45497d294bfa7cb514d164f0b6ce7a5121652cf44c0822af74e29ee579c771c405e002d1f23cf06bfde
+  checksum: 10c0/34d2a8e23eb8e0d1875072064d5e1d9c102e0bdce56a10a25c0b917b8aa9001a9cf5c225df12497e99da107dc379360bc138163c66b55b95f5b105b50578067e
   languageName: node
   linkType: hard
 
