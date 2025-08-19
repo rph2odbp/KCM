@@ -1,16 +1,7 @@
-name: Deploy Functions
+name: Deploy Functions (Default codebase)
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'kateri-monorepo/packages/functions/**'
-      - 'firebase.json'
-      - 'firestore.rules'
-      - 'firestore.indexes.json'
-      - '.github/workflows/deploy-functions.yml'
-
-  # Allow manual deployment
+  # Manual deployment only to avoid accidental deploys on push
   workflow_dispatch:
     inputs:
       environment:
@@ -43,13 +34,16 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'yarn'
           cache-dependency-path: 'kateri-monorepo/yarn.lock'
 
+      - name: Enable Corepack
+        run: corepack enable
+
       - name: Install dependencies
         working-directory: kateri-monorepo
-        run: yarn install --frozen-lockfile
+        run: yarn install --immutable
 
       - name: Build functions
         working-directory: kateri-monorepo
