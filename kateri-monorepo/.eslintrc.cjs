@@ -5,11 +5,7 @@ module.exports = {
     es2020: true,
     node: true,
   },
-  extends: [
-    'eslint:recommended',
-    '@typescript-eslint/recommended',
-    'prettier',
-  ],
+  extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'prettier'],
   ignorePatterns: ['dist', 'lib', 'build', 'coverage', '.eslintrc.cjs'],
   parser: '@typescript-eslint/parser',
   plugins: ['@typescript-eslint'],
@@ -19,7 +15,7 @@ module.exports = {
     '@typescript-eslint/explicit-function-return-type': 'off',
     '@typescript-eslint/explicit-module-boundary-types': 'off',
     '@typescript-eslint/no-explicit-any': 'warn',
-    
+
     // General rules
     'prefer-const': 'error',
     'no-var': 'error',
@@ -30,10 +26,7 @@ module.exports = {
     {
       // React-specific rules for web package
       files: ['packages/web/**/*.{ts,tsx}'],
-      extends: [
-        'plugin:react-hooks/recommended',
-        'plugin:react/recommended',
-      ],
+      extends: ['plugin:react-hooks/recommended', 'plugin:react/recommended'],
       settings: {
         react: {
           version: 'detect',
