@@ -3,7 +3,7 @@ name: Emulator Smoke
 on:
   workflow_dispatch: {}
   pull_request:
-    branches: [main]
+  branches: [main, develop]
 
 jobs:
   smoke:
@@ -19,6 +19,7 @@ jobs:
         run: yarn --cwd kateri-monorepo install --immutable
       - name: Build functions
         run: |
+          yarn --cwd kateri-monorepo workspace @kateri/functions run build
           yarn --cwd kateri-monorepo workspace @kateri/functions-gen2 run build
       - name: Run emulators smoke
         env:
