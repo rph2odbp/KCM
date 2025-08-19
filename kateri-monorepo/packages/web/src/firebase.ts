@@ -22,7 +22,6 @@ const missing = requiredKeys.filter(k => !getEnv(k))
 if (missing.length) {
   // Fail fast with a clear error during development; in production just warn
   const msg = `Firebase config missing required env vars: ${missing.join(', ')}`
-  // eslint-disable-next-line no-console
   console.warn(msg)
   if (import.meta.env.MODE !== 'production') {
     throw new Error(msg)
@@ -64,8 +63,13 @@ const FS_PORT = Number(getEnv('VITE_EMULATOR_FS_PORT') || '8087')
 const FUNC_PORT = Number(getEnv('VITE_EMULATOR_FUNC_PORT') || '5001')
 const STORAGE_PORT = Number(getEnv('VITE_EMULATOR_STORAGE_PORT') || '9197')
 const isBrowser = typeof window !== 'undefined'
-const EMULATOR_FLAG = '__FIREBASE_EMULATORS_CONNECTED__'
-if (useEmulators && isBrowser && !(window as any)[EMULATOR_FLAG]) {
+declare global {
+  // Track emulator wiring on window without using 'any'
+  interface Window {
+    __FIREBASE_EMULATORS_CONNECTED__?: boolean
+  }
+}
+if (useEmulators && isBrowser && !window.__FIREBASE_EMULATORS_CONNECTED__) {
   // Auth supports a full URL (works over https tunnels like Codespaces)
   if (AUTH_URL) {
     connectAuthEmulator(auth, AUTH_URL, { disableWarnings: true })
@@ -75,11 +79,11 @@ if (useEmulators && isBrowser && !(window as any)[EMULATOR_FLAG]) {
   // Firestore via full URL using initializeFirestore with ssl and host:port
   if (FS_URL) {
     try {
-      const u = new URL(FS_URL)
-      const hostPort = u.host // includes :port if present
-      const ssl = u.protocol === 'https:'
+      const u: URL = new URL(FS_URL)
+      const hostPort: string = u.host // includes :port if present
+      const ssl: boolean = u.protocol === 'https:'
       dbInstance = initializeFirestore(app, { host: hostPort, ssl })
-    } catch (e) {
+    } catch (e: unknown) {
       console.warn('Invalid VITE_FS_EMULATOR_URL, falling back to host/port:', e)
       connectFirestoreEmulator(dbInstance, EMULATOR_HOST, FS_PORT)
     }
@@ -91,7 +95,7 @@ if (useEmulators && isBrowser && !(window as any)[EMULATOR_FLAG]) {
     connectFunctionsEmulator(functions, EMULATOR_HOST, FUNC_PORT)
   }
   connectStorageEmulator(storage, EMULATOR_HOST, STORAGE_PORT)
-  ;(window as any)[EMULATOR_FLAG] = true
+  window.__FIREBASE_EMULATORS_CONNECTED__ = true
 }
 
 export const db = dbInstance

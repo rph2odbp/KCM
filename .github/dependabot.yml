@@ -8,6 +8,7 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 5
+    security-updates-only: true
     reviewers:
       - "rph2odbp"
     commit-message:
@@ -22,6 +23,7 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 5
+    security-updates-only: true
     reviewers:
       - "rph2odbp"
     commit-message:
@@ -36,6 +38,7 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 5
+    security-updates-only: true
     reviewers:
       - "rph2odbp"
     commit-message:
@@ -50,6 +53,7 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 5
+    security-updates-only: true
     reviewers:
       - "rph2odbp"
     commit-message:
@@ -64,6 +68,7 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 5
+    security-updates-only: true
     reviewers:
       - "rph2odbp"
     commit-message:
@@ -78,6 +83,7 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 3
+    security-updates-only: true
     reviewers:
       - "rph2odbp"
     commit-message:

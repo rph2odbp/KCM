@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteUserDataV2 = exports.createUserProfileV2 = exports.onCamperUpdatedV2 = exports.dailyHealthCheckV2 = exports.helloWorld = void 0;
+exports.backupFirestoreDaily = exports.cleanupDeletedUsersDaily = exports.onCamperUpdatedV2 = exports.dailyHealthCheckV2 = exports.helloWorld = void 0;
 const firebase_functions_1 = require("firebase-functions");
 const https_1 = require("firebase-functions/v2/https");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
@@ -44,27 +44,61 @@ const firestore_1 = require("firebase-functions/v2/firestore");
 const admin = __importStar(require("firebase-admin"));
 const firestore_2 = require("firebase-admin/firestore");
 const cors_1 = __importDefault(require("cors"));
+const sentry_1 = require("./sentry");
+// Initialize Sentry lazily (env or secret)
+(0, sentry_1.ensureSentryInitialized)();
 admin.initializeApp();
 (0, firestore_2.getFirestore)('kcm-db');
 const corsHandler = (0, cors_1.default)({ origin: true });
-exports.helloWorld = (0, https_1.onRequest)({ region: 'us-central1' }, (request, response) => {
-    corsHandler(request, response, () => {
+exports.helloWorld = (0, https_1.onRequest)({ region: 'us-central1', invoker: 'private', secrets: [sentry_1.SENTRY_DSN_SECRET] }, async (request, response) => {
+    try {
+        await new Promise((resolve, reject) => corsHandler(request, response, () => resolve()));
         firebase_functions_1.logger.info('Hello world function called', { structuredData: true });
         response.json({ message: 'Hello from KCM Firebase Functions (Node 22)!' });
-    });
+    }
+    catch (err) {
+        (0, sentry_1.captureException)(err, { function: 'helloWorld' });
+        firebase_functions_1.logger.error('helloWorld failed', { message: err?.message });
+        response.status(500).json({ error: 'Internal error' });
+    }
 });
-exports.dailyHealthCheckV2 = (0, scheduler_1.onSchedule)({ region: 'us-central1', schedule: '0 6 * * *', timeZone: 'America/New_York' }, async (event) => {
-    firebase_functions_1.logger.info('Daily health check completed', { timestamp: event.scheduleTime });
+exports.dailyHealthCheckV2 = (0, scheduler_1.onSchedule)({
+    region: 'us-central1',
+    schedule: '0 6 * * *',
+    timeZone: 'America/New_York',
+    secrets: [sentry_1.SENTRY_DSN_SECRET],
+}, async (event) => {
+    try {
+        firebase_functions_1.logger.info('Daily health check completed', { timestamp: event.scheduleTime });
+    }
+    catch (err) {
+        (0, sentry_1.captureException)(err, { function: 'dailyHealthCheckV2' });
+        throw err;
+    }
 });
-exports.onCamperUpdatedV2 = (0, firestore_1.onDocumentUpdated)({ region: 'us-central1', document: 'campers/{camperId}', database: 'kcm-db' }, async (event) => {
-    if (!event.data)
-        return;
-    const before = event.data.before.data();
-    const after = event.data.after.data();
-    firebase_functions_1.logger.info('Camper updated', { camperId: event.params.camperId, changes: { before, after } });
+exports.onCamperUpdatedV2 = (0, firestore_1.onDocumentUpdated)({
+    region: 'us-central1',
+    document: 'campers/{camperId}',
+    database: 'kcm-db',
+    secrets: [sentry_1.SENTRY_DSN_SECRET],
+}, async (event) => {
+    try {
+        if (!event.data)
+            return;
+        const before = event.data.before.data();
+        const after = event.data.after.data();
+        firebase_functions_1.logger.info('Camper updated', { camperId: event.params.camperId, changes: { before, after } });
+    }
+    catch (err) {
+        (0, sentry_1.captureException)(err, { function: 'onCamperUpdatedV2', camperId: event.params.camperId });
+        throw err;
+    }
 });
 // Auth (Gen 2) triggers
-var auth_migration_1 = require("./auth.migration");
-Object.defineProperty(exports, "createUserProfileV2", { enumerable: true, get: function () { return auth_migration_1.createUserProfileV2; } });
-Object.defineProperty(exports, "deleteUserDataV2", { enumerable: true, get: function () { return auth_migration_1.deleteUserDataV2; } });
+// Note: createUserProfileV2 (identity blocking) requires GCIP; omitted for Firebase Auth projects.
+var auth_cleanup_1 = require("./auth.cleanup");
+Object.defineProperty(exports, "cleanupDeletedUsersDaily", { enumerable: true, get: function () { return auth_cleanup_1.cleanupDeletedUsersDaily; } });
+// Firestore export backup (daily)
+var backup_1 = require("./backup");
+Object.defineProperty(exports, "backupFirestoreDaily", { enumerable: true, get: function () { return backup_1.backupFirestoreDaily; } });
 //# sourceMappingURL=index.js.map

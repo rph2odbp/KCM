@@ -17,6 +17,7 @@ This repository provides a complete, production-ready foundation for modern camp
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - Node.js 20+
 - Yarn package manager
 - Firebase CLI
@@ -43,6 +44,7 @@ yarn workspace:functions serve  # Functions emulator
 ### Environment Setup
 
 1. Copy environment files:
+
    ```bash
    cp kateri-monorepo/packages/web/.env.example kateri-monorepo/packages/web/.env.local
    cp kateri-monorepo/packages/functions/.env.local.example kateri-monorepo/packages/functions/.env.local
@@ -50,6 +52,82 @@ yarn workspace:functions serve  # Functions emulator
 
 2. Configure Firebase settings in `.env.local` files
 3. Set up Adyen test credentials for payment integration
+
+## 🧭 Operations & Phase 0 Foundations
+
+This project is set up with production-minded operations from day one. Key pieces you’ll use most often are summarized here for quick reference.
+
+### Functions Gen 2 and Firestore
+
+- Runtime: Firebase Functions Gen 2 (Node 22), region `us-central1`.
+- Named Firestore DB: `kcm-db` (not the default). All triggers and Admin calls use this DB explicitly.
+
+### Backups (Firestore export)
+
+- Daily export function: `backupFirestoreDaily` at 03:00 America/New_York.
+- Target bucket: `gs://kcm-firebase-b7d6a-backups` with a 60‑day lifecycle on `firestore-exports/*`.
+- Service account: `kcm-backup@kcm-firebase-b7d6a.iam.gserviceaccount.com` (least privilege: Firestore import/export + Storage object admin on the backups bucket).
+- Config for functions-gen2 is stored in `.env` at: `kateri-monorepo/packages/functions-gen2/.env.kcm-firebase-b7d6a` with:
+  - `FIRESTORE_BACKUP_BUCKET=kcm-firebase-b7d6a-backups`
+  - `FIRESTORE_BACKUP_SERVICE_ACCOUNT=kcm-backup@kcm-firebase-b7d6a.iam.gserviceaccount.com`
+
+### Alerts
+
+- Failure alert (log match): fires on `Export failed` from service `backupfirestoredaily` (rate‑limited to 1/hr).
+- Missed run alert (absence): fires if `backupfirestoredaily` receives no HTTP requests for ~23h (Cloud Run `request_count`).
+- Email channel: verified `ryanhallford.br@gmail.com`.
+- Helper script to (re)attach channel to backup alerts: `scripts/attach_backup_alerts.sh`.
+
+### Restore drill (validate backups)
+
+- Script: `scripts/restore_drill.sh`.
+- What it does: finds the latest export in `gs://kcm-firebase-b7d6a-backups/firestore-exports/kcm-db/<timestamp>/`, creates a temporary DB `kcm-restore`, runs an import via the Firestore Admin API, polls until complete, and exits when done.
+- Cleanup: the script doesn’t delete the DB; delete protection is enabled on create. To remove later, disable delete protection and delete the DB (see Ops runbook or use the commands shown in prior sessions).
+
+### Phase 0 checklist (foundations)
+
+- [x] Gen 2 migration with named Firestore DB
+- [x] Backups: daily export to dedicated bucket with lifecycle and least‑privileged SA
+- [x] Alerts: failure + missed run, email channel verified
+- [x] Restore drill: automated script and successful dry‑run
+- [x] CI/CD deploys via GitHub Actions with OIDC
+- [ ] Monitoring dashboard: surface request_count, error logs, and backup signals
+- [ ] Monthly restore drill reminder (calendar/task)
+- [ ] Error tracking/analytics wiring in the web app (as needed)
+
+Dashboard quick link (Monitoring):
+
+- https://console.cloud.google.com/monitoring/dashboards/builder/ca85d400-f5df-4e6d-999c-8c0c8671dbc5?project=kcm-firebase-b7d6a
+
+## 🧩 UX blueprint (GCP Console–inspired)
+
+- Global context switcher: Season/session selector (like GCP project selector).
+- Persistent left nav: Dashboard, Camps, Campers, Registrations, Payments, Communications, Reports, Settings.
+- Resource list → detail with tabs: Overview, Details, People, Documents, Activity, Permissions.
+- Utility bar: search, date/session filter, export, create.
+- Role‑based visibility: only show actions the user can perform.
+- Material UI recommended for fast, accessible ergonomics.
+
+## 🗺 Phased delivery plan (rough effort)
+
+Assumes Firebase/Firestore + React stack, solo/small team. Ranges reflect unknowns.
+
+- Phase 0 — Foundations & ops (1–2 weeks) [partially done]
+  - CI/CD, environments, feature flags, error tracking, analytics
+  - SLOs, dashboards, alerts, runbooks
+- Phase 1 — Auth, RBAC, and app shell (2–3 weeks)
+- Phase 2 — Data model and core entities (3–4 weeks)
+- Phase 3 — Payments and billing (3–5 weeks)
+- Phase 4 — Forms and compliance (2–4 weeks)
+- Phase 5 — Check‑in/out and operations (2–4 weeks)
+- Phase 6 — Communications (2–3 weeks)
+- Phase 7 — Reporting and exports (2–3 weeks)
+- Phase 8 — Quality, polish, accessibility (2–4 weeks)
+- Phase 9 — Hardening and scale (1–2 weeks)
+
+Estimated new work remaining for a “complete” system: ~75–85% (MVP‑plus ~4–7 months depending on scope and parallelism).
+
+For detailed operations notes, see `docs/ops/README.md`.
 
 ## 📁 Repository Structure
 
@@ -80,6 +158,7 @@ KCM/
 ## 🛠 Development Commands
 
 ### Root Level
+
 ```bash
 # Install all dependencies
 yarn install
@@ -101,6 +180,7 @@ yarn format
 ```
 
 ### Web App Commands
+
 ```bash
 # Development server
 yarn workspace:web dev
@@ -119,6 +199,7 @@ yarn workspace:web storybook
 ```
 
 ### Functions Commands
+
 ```bash
 # Local development with emulators
 yarn workspace:functions serve
@@ -134,6 +215,7 @@ yarn workspace:functions test
 ```
 
 ### Shared Package Commands
+
 ```bash
 # Build shared types
 yarn workspace:shared build
@@ -145,6 +227,7 @@ yarn workspace:shared test
 ## 🔧 CI/CD Pipeline
 
 ### Automated Checks (PR and Push)
+
 - **Linting**: ESLint across all packages
 - **Type Checking**: TypeScript compilation
 - **Testing**: Unit and integration tests
@@ -152,11 +235,13 @@ yarn workspace:shared test
 - **Security**: CodeQL analysis
 
 ### Deployment Pipeline
+
 - **Environment Gating**: Deploy only from `main` branch with environment approval
 - **Functions Deployment**: Automated deployment to Firebase via GitHub Actions
 - **Web Deployment**: Firebase App Hosting (configured separately)
 
 ### Branch Protection
+
 - Require PR reviews
 - Require status checks to pass
 - Squash-only merge strategy
@@ -164,17 +249,21 @@ yarn workspace:shared test
 ## 🛡 Security & Environments
 
 ### GitHub Environments
+
 - **dev**: Development environment with test Firebase project
-- **staging**: Staging environment for pre-production testing  
+- **staging**: Staging environment for pre-production testing
 - **prod**: Production environment with live Firebase project
 
 ### Secret Management
+
 Secrets are managed through GitHub Environment secrets:
+
 - `FIREBASE_SERVICE_ACCOUNT`: Service account for deployment
 - `ADYEN_*`: Payment processing credentials
 - Environment-specific configuration variables
 
 ### Firestore Security
+
 - Role-based access control with custom claims
 - Least-privilege security rules
 - Separate collections for different user types (guardians, staff, admin, medic)
@@ -182,6 +271,7 @@ Secrets are managed through GitHub Environment secrets:
 ## 🎯 Feature Roadmap
 
 ### Phase 1: Core Infrastructure ✅
+
 - [x] Repository scaffolding and configuration
 - [x] Monorepo setup with Yarn workspaces
 - [x] CI/CD pipeline with GitHub Actions
@@ -189,12 +279,14 @@ Secrets are managed through GitHub Environment secrets:
 - [x] Type-safe development environment
 
 ### Phase 2: Authentication & User Management
+
 - [ ] Firebase Authentication integration
 - [ ] User roles and permissions system
 - [ ] Profile management for guardians, staff, and admin
 - [ ] Custom claims for role-based access
 
 ### Phase 3: Camper Registration System
+
 - [ ] Multi-step registration forms with validation
 - [ ] Guardian account creation and management
 - [ ] Medical information collection (allergies, medications, conditions)
@@ -202,6 +294,7 @@ Secrets are managed through GitHub Environment secrets:
 - [ ] Document upload (medical forms, insurance cards)
 
 ### Phase 4: Medical Administration Records (MAR)
+
 - [ ] Digital medication tracking system
 - [ ] Medical professional dashboard
 - [ ] Incident reporting and documentation
@@ -209,6 +302,7 @@ Secrets are managed through GitHub Environment secrets:
 - [ ] Integration with registration medical data
 
 ### Phase 5: Payment Processing (Adyen)
+
 - [ ] Secure payment integration with Adyen
 - [ ] Registration fee processing
 - [ ] Payment plans and installments
@@ -216,6 +310,7 @@ Secrets are managed through GitHub Environment secrets:
 - [ ] Financial reporting and reconciliation
 
 ### Phase 6: Photo Gallery & Media Management
+
 - [ ] Secure photo upload and storage
 - [ ] Permission-based photo sharing
 - [ ] Guardian access to child's photos only
@@ -223,6 +318,7 @@ Secrets are managed through GitHub Environment secrets:
 - [ ] Privacy controls and consent management
 
 ### Phase 7: Reporting & Analytics
+
 - [ ] Camper roster generation
 - [ ] Medical reports for healthcare staff
 - [ ] Financial reports and summaries
@@ -230,6 +326,7 @@ Secrets are managed through GitHub Environment secrets:
 - [ ] Custom report builder
 
 ### Phase 8: AI-Powered Features
+
 - [ ] Intelligent form completion assistance
 - [ ] Medical data pattern recognition
 - [ ] Automated report generation
@@ -237,6 +334,7 @@ Secrets are managed through GitHub Environment secrets:
 - [ ] Predictive analytics for camp planning
 
 ### Phase 9: Advanced Features
+
 - [ ] Mobile app development (React Native)
 - [ ] Real-time notifications and messaging
 - [ ] Integration with external health systems
@@ -246,10 +344,12 @@ Secrets are managed through GitHub Environment secrets:
 ## 🤝 Contributing
 
 This repository supports Discussions and Projects for community collaboration:
+
 - **Discussions**: Enabled for questions, ideas, and community feedback
 - **Projects**: Enabled for roadmap tracking and feature planning
 
 ### Development Process
+
 1. Check existing issues and discussions before creating new ones
 2. Create feature branch from `main`
 3. Implement changes with tests and documentation
@@ -258,6 +358,7 @@ This repository supports Discussions and Projects for community collaboration:
 6. Squash and merge after approval
 
 ### Important Notes
+
 - **Feature builds require owner confirmation** before deployment
 - All changes must pass CI checks (lint, typecheck, test, build)
 - Security considerations must be documented for user data handling

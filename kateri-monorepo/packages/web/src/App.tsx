@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './App.css'
@@ -7,8 +6,7 @@ import './App.css'
 const queryClient = new QueryClient()
 
 function App() {
-  // Placeholder state (reserved for future use)
-  const [_count, _setCount] = useState(0)
+  // App shell only; state will be added as features land
 
   return (
     <QueryClientProvider client={queryClient}>

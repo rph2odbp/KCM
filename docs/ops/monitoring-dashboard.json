@@ -1,0 +1,171 @@
+{
+  "displayName": "KCM Ops: Functions & Backups",
+  "gridLayout": {
+    "columns": 12,
+    "widgets": [
+      {
+        "title": "backupfirestoredaily - request count (24h)",
+        "xyChart": {
+          "dataSets": [
+            {
+              "timeSeriesQuery": {
+                "timeSeriesFilter": {
+                  "filter": "metric.type=\"run.googleapis.com/request_count\" resource.type=\"cloud_run_revision\" resource.label.\"service_name\"=\"backupfirestoredaily\"",
+                  "aggregation": {
+                    "alignmentPeriod": "3600s",
+                    "perSeriesAligner": "ALIGN_RATE"
+                  }
+                }
+              },
+              "plotType": "LINE",
+              "legendTemplate": "requests/s"
+            }
+          ],
+          "timeshiftDuration": "0s",
+          "yAxis": {
+            "label": "req/s",
+            "scale": "LINEAR"
+          }
+        }
+      },
+      {
+        "title": "Functions error count (last 24h)",
+        "xyChart": {
+          "dataSets": [
+            {
+              "timeSeriesQuery": {
+                "timeSeriesFilter": {
+                  "filter": "metric.type=\"run.googleapis.com/request_count\" resource.type=\"cloud_run_revision\" metric.label.\"response_code_class\"=\"5xx\"",
+                  "aggregation": {
+                    "alignmentPeriod": "300s",
+                    "perSeriesAligner": "ALIGN_RATE"
+                  }
+                }
+              },
+              "plotType": "STACKED_AREA",
+              "legendTemplate": "5xx req/s"
+            }
+          ]
+        }
+      },
+      {
+        "title": "Backup export logs (recent)",
+        "logsPanel": {
+          "filter": "resource.type=cloud_run_revision AND resource.labels.service_name=\"backupfirestoredaily\" AND (textPayload: \"Starting Firestore export\" OR textPayload: \"Export failed\")",
+          "resourceNames": []
+        }
+      },
+      {
+        "title": "Requests by function (rate)",
+        "xyChart": {
+          "dataSets": [
+            {
+              "timeSeriesQuery": {
+                "timeSeriesFilter": {
+                  "filter": "metric.type=\"run.googleapis.com/request_count\" resource.type=\"cloud_run_revision\"",
+                  "aggregation": {
+                    "alignmentPeriod": "300s",
+                    "perSeriesAligner": "ALIGN_RATE",
+                    "crossSeriesReducer": "REDUCE_SUM",
+                    "groupByFields": ["resource.label.\"service_name\""]
+                  }
+                }
+              },
+              "plotType": "LINE",
+              "legendTemplate": "${resource.label.service_name}"
+            }
+          ]
+        }
+      },
+      {
+        "title": "5xx error rate by function (%)",
+        "xyChart": {
+          "dataSets": [
+            {
+              "timeSeriesQuery": {
+                "timeSeriesFilterRatio": {
+                  "numerator": {
+                    "filter": "metric.type=\"run.googleapis.com/request_count\" resource.type=\"cloud_run_revision\" metric.label.\"response_code_class\"=\"5xx\"",
+                    "aggregation": {
+                      "alignmentPeriod": "300s",
+                      "perSeriesAligner": "ALIGN_RATE",
+                      "crossSeriesReducer": "REDUCE_SUM",
+                      "groupByFields": ["resource.label.\"service_name\""]
+                    }
+                  },
+                  "denominator": {
+                    "filter": "metric.type=\"run.googleapis.com/request_count\" resource.type=\"cloud_run_revision\"",
+                    "aggregation": {
+                      "alignmentPeriod": "300s",
+                      "perSeriesAligner": "ALIGN_RATE",
+                      "crossSeriesReducer": "REDUCE_SUM",
+                      "groupByFields": ["resource.label.\"service_name\""]
+                    }
+                  }
+                }
+              },
+              "plotType": "LINE",
+              "legendTemplate": "${resource.label.service_name}"
+            }
+          ],
+          "yAxis": {
+            "label": "%",
+            "scale": "LINEAR"
+          }
+        }
+      },
+      {
+        "title": "Latency p50 by function (ms)",
+        "xyChart": {
+          "dataSets": [
+            {
+              "timeSeriesQuery": {
+                "timeSeriesFilter": {
+                  "filter": "metric.type=\"run.googleapis.com/request_latencies\" resource.type=\"cloud_run_revision\"",
+                  "aggregation": {
+                    "alignmentPeriod": "300s",
+                    "perSeriesAligner": "ALIGN_PERCENTILE_50",
+                    "crossSeriesReducer": "REDUCE_NONE",
+                    "groupByFields": ["resource.label.\"service_name\""]
+                  }
+                }
+              },
+              "plotType": "LINE",
+              "legendTemplate": "${resource.label.service_name}"
+            }
+          ],
+          "yAxis": {
+            "label": "ms",
+            "scale": "LINEAR"
+          }
+        }
+      },
+      {
+        "title": "Latency p95 by function (ms)",
+        "xyChart": {
+          "dataSets": [
+            {
+              "timeSeriesQuery": {
+                "timeSeriesFilter": {
+                  "filter": "metric.type=\"run.googleapis.com/request_latencies\" resource.type=\"cloud_run_revision\"",
+                  "aggregation": {
+                    "alignmentPeriod": "300s",
+                    "perSeriesAligner": "ALIGN_PERCENTILE_95",
+                    "crossSeriesReducer": "REDUCE_NONE",
+                    "groupByFields": ["resource.label.\"service_name\""]
+                  }
+                }
+              },
+              "plotType": "LINE",
+              "legendTemplate": "${resource.label.service_name}"
+            }
+          ],
+          "yAxis": {
+            "label": "ms",
+            "scale": "LINEAR"
+          }
+        }
+      }
+    ]
+  }
+}
