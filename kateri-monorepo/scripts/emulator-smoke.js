@@ -4,10 +4,11 @@
 // Requires: firebase emulators:exec --only functions,firestore --project kcm-firebase-b7d6a -- node scripts/emulator-smoke.js
 const PROJECT_ID = process.env.FB_PROJECT_ID || 'kcm-firebase-b7d6a'
 const DB_ID = process.env.FB_DB_ID || 'kcm-db'
+const USE_DB_ID = process.env.FIRESTORE_EMULATOR_HOST ? '(default)' : DB_ID
 
 async function main() {
   const base = 'http://127.0.0.1'
-  const fsBase = `${base}:8087/v1/projects/${PROJECT_ID}/databases/${DB_ID}/documents`
+  const fsBase = `${base}:8087/v1/projects/${PROJECT_ID}/databases/${USE_DB_ID}/documents`
 
   // Firestore: create + update to (optionally) trigger onCamperUpdatedV2
   const docPath = `${fsBase}/campers/smoke-${Date.now()}`
