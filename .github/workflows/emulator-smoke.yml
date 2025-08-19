@@ -3,7 +3,7 @@ name: Emulator Smoke
 on:
   workflow_dispatch: {}
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 jobs:
   smoke:
@@ -12,13 +12,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
       - name: Enable Corepack
         run: corepack enable
       - name: Install
         run: yarn --cwd kateri-monorepo install --immutable
       - name: Build functions
         run: |
+          yarn --cwd kateri-monorepo workspace @kateri/functions run build
           yarn --cwd kateri-monorepo workspace @kateri/functions-gen2 run build
       - name: Run emulators smoke
         env:

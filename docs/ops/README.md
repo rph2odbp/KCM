@@ -66,6 +66,18 @@ This runbook documents IAM, alerts, schedules, backups, and restore steps for KC
   - Functions 5xx request rate
   - Recent backup export logs
 
+## Deploy and Rollback (Functions)
+
+- CI gates: every PR to `main`/`develop` runs typecheck, lint, tests, build; emulator smoke runs on PRs.
+- Deploy Gen 2:
+  - Tag-based deploy workflow runs on pushing tags `v*` (uses OIDC). Create a release tag to deploy gen2.
+  - Manual: dispatch the "Deploy Gen2 Functions" workflow in Actions for an on-demand deploy.
+- Deploy default (legacy codebase): manual workflow dispatch only ("Deploy Default Functions").
+- Rollback:
+  - Fast path: check out the last known-good tag/commit and rerun the Gen2 deploy workflow to redeploy that revision.
+  - Or revert the offending commit on `main` and allow CI/deploy to run.
+  - Verify via the Monitoring dashboard and logs; if needed, reduce max instances to 0 on problematic functions to drain traffic.
+
 ## Secrets (Functions Gen 2)
 
 - Secret Manager is used for server-side Sentry:
