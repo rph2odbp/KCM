@@ -15,8 +15,11 @@ jobs:
           node-version: "22"
       - name: Enable Corepack
         run: corepack enable
+      - name: Pin Yarn
+        run: corepack prepare yarn@4.1.0 --activate
       - name: Install
-        run: yarn --cwd kateri-monorepo install --immutable
+        working-directory: kateri-monorepo
+        run: yarn install --immutable
       - name: Build functions
         run: |
           yarn --cwd kateri-monorepo workspace @kateri/functions run build
