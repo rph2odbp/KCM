@@ -30,9 +30,9 @@ jobs:
         run: |
           node -v
           yarn --version
-      - name: Install
+      - name: Install (non-immutable)
         working-directory: kateri-monorepo
-        run: yarn install --immutable
+        run: corepack yarn install
       - name: Validate required secrets
         run: |
           if [ -z "${FIREBASE_TOKEN}" ]; then

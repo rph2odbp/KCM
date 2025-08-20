@@ -21,9 +21,9 @@ jobs:
         run: |
           node -v
           yarn --version
-      - name: Install
+      - name: Install (non-immutable)
         working-directory: kateri-monorepo
-        run: yarn install --immutable
+        run: corepack yarn install
       - name: Build functions
         run: |
           yarn --cwd kateri-monorepo workspace @kateri/functions run build
