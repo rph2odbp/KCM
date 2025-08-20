@@ -26,11 +26,34 @@ jobs:
       - name: Install
         working-directory: kateri-monorepo
         run: yarn install --immutable
-      - name: Authenticate to Google Cloud (OIDC)
+      - name: Validate required secrets
+        run: |
+          if [ -z "${{ secrets.FIREBASE_TOKEN }}" ]; then
+            echo "Missing required secret: FIREBASE_TOKEN. Create a repo secret named FIREBASE_TOKEN with your firebase login:ci token." >&2
+            exit 1
+          fi
+      - name: Authenticate to Firebase (Service Account)
+        if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
-      - name: Deploy gen2 codebase
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      - name: Deploy gen2 codebase (with SA + token)
+        if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
-          yarn dlx firebase-tools deploy --only functions:gen2 --project kcm-firebase-b7d6a --non-interactive
+          yarn dlx firebase-tools deploy \
+            --only functions:gen2 \
+            --project kcm-firebase-b7d6a \
+            --non-interactive \
+            --token "$FIREBASE_TOKEN"
+      - name: Deploy gen2 codebase (token-only)
+        if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT == '' }}
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          yarn dlx firebase-tools deploy \
+            --only functions:gen2 \
+            --project kcm-firebase-b7d6a \
+            --non-interactive \
+            --token "$FIREBASE_TOKEN"
