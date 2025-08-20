@@ -53,6 +53,14 @@ This runbook documents IAM, alerts, schedules, backups, and restore steps for KC
 - Template JSON: `docs/ops/monitoring-dashboard.json`
 - Create/update with: `scripts/create-monitoring-dashboard.sh <PROJECT_ID>`
 
+### Validation helper
+
+A small helper script can validate local tooling and remind you how to run the dashboard creation script:
+
+./scripts/validate-monitoring-dashboard.sh <PROJECT_ID>
+
+This checks for `gcloud` and `jq` and verifies `docs/ops/monitoring-dashboard.json` exists.
+
 ## helloWorld health endpoint (private)
 
 - Function: `helloWorld` (HTTPS, us-central1) is a simple liveness/smoke check returning `{ message: "Hello from KCM Firebase Functions (Node 22)!" }`.

@@ -1,55 +1,122 @@
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './App.css'
+import { AuthProvider, useAuth } from './auth'
+import Login from './Login'
+import RoleSelector from './RoleSelector'
+import Topbar from './components/Topbar'
+import ParentLanding from './roles/ParentLanding'
+import StaffLanding from './roles/StaffLanding'
+import AdminLanding from './roles/AdminLanding'
 
 // Create a query client for React Query
 const queryClient = new QueryClient()
 
 function App() {
-  // App shell only; state will be added as features land
-
   return (
     <QueryClientProvider client={queryClient}>
-      <Router>
-        <div className="App">
-          <header className="App-header">
-            <h1>🏕️ KCM - Kateri Camp Management</h1>
-            <p>Welcome to the camp management platform</p>
-          </header>
+      <AuthProvider>
+        <Router>
+          <div className="App">
+            <Topbar />
 
-          <nav style={{ padding: '20px' }}>
-            <Link to="/" style={{ marginRight: '20px' }}>
-              Home
-            </Link>
-            <Link to="/campers" style={{ marginRight: '20px' }}>
-              Campers
-            </Link>
-            <Link to="/medical" style={{ marginRight: '20px' }}>
-              Medical
-            </Link>
-            <Link to="/photos">Photos</Link>
-          </nav>
+            <main className="container">
+              <Routes>
+                <Route path="/" element={<LandingOrDashboard />} />
+                <Route path="/login" element={<Login />} />
+                <Route
+                  path="/roles"
+                  element={
+                    <Protected>
+                      <RoleSelector />
+                    </Protected>
+                  }
+                />
+                {/* Role-specific roots */}
+                <Route
+                  path="/parent/*"
+                  element={
+                    <Protected>
+                      <RoleProtected role="parent">
+                        <ParentLanding />
+                      </RoleProtected>
+                    </Protected>
+                  }
+                />
+                <Route
+                  path="/staff/*"
+                  element={
+                    <Protected>
+                      <RoleProtected role="staff">
+                        <StaffLanding />
+                      </RoleProtected>
+                    </Protected>
+                  }
+                />
+                <Route
+                  path="/admin/*"
+                  element={
+                    <Protected>
+                      <RoleProtected role="admin">
+                        <AdminLanding />
+                      </RoleProtected>
+                    </Protected>
+                  }
+                />
+                <Route
+                  path="/campers"
+                  element={
+                    <Protected>
+                      <CampersPage />
+                    </Protected>
+                  }
+                />
+                <Route
+                  path="/medical"
+                  element={
+                    <Protected>
+                      <MedicalPage />
+                    </Protected>
+                  }
+                />
+                <Route
+                  path="/photos"
+                  element={
+                    <Protected>
+                      <PhotosPage />
+                    </Protected>
+                  }
+                />
+              </Routes>
+            </main>
 
-          <main style={{ padding: '20px' }}>
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/campers" element={<CampersPage />} />
-              <Route path="/medical" element={<MedicalPage />} />
-              <Route path="/photos" element={<PhotosPage />} />
-            </Routes>
-          </main>
-        </div>
-      </Router>
+            <footer className="footer">
+              <div className="container">
+                © {new Date().getFullYear()} KCM — Production-ready camp management
+              </div>
+            </footer>
+          </div>
+        </Router>
+      </AuthProvider>
     </QueryClientProvider>
   )
 }
 
-// Placeholder components
+function LandingOrDashboard() {
+  const { user, loading } = useAuth()
+  if (loading) return <div>Loading...</div>
+  if (!user) return <Navigate to="/login" replace />
+  return <Home />
+}
+
 function Home() {
   return (
-    <div>
+    <section>
       <h2>Dashboard</h2>
-      <p>Welcome to the KCM dashboard. This is where camp administrators can manage:</p>
+      <p>
+        Welcome to the KCM dashboard. This is where camp administrators can manage core camp
+        operations.
+      </p>
       <ul>
         <li>Camper registration and rosters</li>
         <li>Medical administration records (MAR)</li>
@@ -61,44 +128,51 @@ function Home() {
       <p>
         <strong>Status:</strong> Development environment - Firebase emulators ready
       </p>
-    </div>
+    </section>
   )
 }
 
 function CampersPage() {
   return (
-    <div>
+    <section>
       <h2>Camper Management</h2>
       <p>Manage camper registration, profiles, and rosters.</p>
-      <p>
-        <em>Feature coming soon...</em>
-      </p>
-    </div>
+    </section>
   )
 }
 
 function MedicalPage() {
   return (
-    <div>
+    <section>
       <h2>Medical Administration Records (MAR)</h2>
       <p>Track medications, incidents, and medical history.</p>
-      <p>
-        <em>Feature coming soon...</em>
-      </p>
-    </div>
+    </section>
   )
 }
 
 function PhotosPage() {
   return (
-    <div>
+    <section>
       <h2>Photo Gallery</h2>
       <p>Secure photo sharing with permission controls.</p>
-      <p>
-        <em>Feature coming soon...</em>
-      </p>
-    </div>
+    </section>
   )
 }
 
 export default App
+
+function Protected({ children }: { children: JSX.Element }) {
+  const { user, loading } = useAuth()
+  if (loading) return <div>Loading...</div>
+  if (!user) return <Navigate to="/login" replace />
+  return children
+}
+
+function RoleProtected({ role, children }: { role: string; children: JSX.Element }) {
+  const { currentRole, loading } = useAuth()
+  if (loading) return <div>Loading...</div>
+  // If no role selected or role doesn't match, direct user to role picker
+  if (!currentRole) return <Navigate to="/roles" replace />
+  if (currentRole !== role) return <Navigate to="/roles" replace />
+  return children
+}

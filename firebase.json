@@ -19,7 +19,7 @@
         "*.local"
       ],
       "predeploy": [
-  "corepack yarn --cwd kateri-monorepo workspace @kateri/functions build"
+        "corepack yarn --cwd kateri-monorepo workspace @kateri/functions build"
       ]
     },
     {
@@ -33,32 +33,42 @@
         "*.local"
       ],
       "predeploy": [
-    "corepack yarn --cwd kateri-monorepo workspace @kateri/functions-gen2 build"
+        "corepack yarn --cwd kateri-monorepo workspace @kateri/functions-gen2 build"
       ]
     }
   ],
   "hosting": {
     "public": "kateri-monorepo/packages/web/dist",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-  "rewrites": [{ "source": "**", "destination": "/index.html" }],
-  "predeploy": ["corepack yarn --cwd kateri-monorepo workspace @kateri/web build"]
+    "rewrites": [{ "source": "**", "destination": "/index.html" }],
+    "predeploy": [
+      "corepack yarn --cwd kateri-monorepo workspace @kateri/web build"
+    ]
   },
   "emulators": {
     "auth": {
-      "port": 9100
+      "port": 9110
     },
     "firestore": {
-      "port": 8087
+      "port": 8088
     },
     "functions": {
       "port": 5001
     },
     "storage": {
-      "port": 9197
+      "port": 9198
     },
     "ui": {
       "enabled": true,
-      "port": 4040
+      "host": "0.0.0.0",
+      "port": 4050
+    },
+    "hub": {
+      "host": "0.0.0.0",
+      "port": 9151
+    },
+    "logging": {
+      "port": 4501
     },
     "singleProjectMode": true
   },

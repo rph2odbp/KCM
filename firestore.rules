@@ -8,63 +8,68 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    function hasRole(role) {
-      return isAuthenticated() && 
-             request.auth.token.get(role, false) == true;
+    // Load roles from the user's profile document rather than custom claims
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function hasUserRole(role) {
+      return isAuthenticated() && userDoc().roles != null && userDoc().roles.hasAny([role]);
     }
     
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
     
-    function isGuardianOf(camperId) {
-      // TODO: Implement guardian relationship check
-      // This should verify that the authenticated user is a guardian of the specific camper
+    function isParentOf(camperId) {
+      // TODO: Implement parent relationship check (guardian -> parent renaming)
+      // This should verify that the authenticated user is a parent of the specific camper
       return isAuthenticated() && 
-             hasRole('guardian') &&
+             hasUserRole('parent') &&
              exists(/databases/$(database)/documents/guardianships/$(request.auth.uid + '_' + camperId));
     }
 
     // User profiles - users can read/write their own profile
     match /users/{userId} {
+      // Users can read and update their own profile
       allow read, write: if isOwner(userId);
-      allow read: if hasRole('admin') || hasRole('staff');
+      // Admins can manage any user profile
+      allow read, write: if hasUserRole('admin');
     }
 
     // Camper records - restricted access based on roles
     match /campers/{camperId} {
-      // Guardians can only access their own campers
-      allow read, write: if isGuardianOf(camperId);
-      
-      // Staff can read all campers, write with additional verification
-      allow read: if hasRole('staff') || hasRole('admin');
-      allow write: if hasRole('admin');
+      // Parents can only access their own campers
+      allow read, write: if isParentOf(camperId);
+
+      // Hired staff (elevated) can read all campers; only admins can write
+      allow read: if hasUserRole('staff_hired') || hasUserRole('admin');
+      allow write: if hasUserRole('admin');
     }
 
     // Medical records - highly restricted access
     match /medical_records/{recordId} {
       // Only medical staff and admins can access medical records
-      allow read, write: if hasRole('medic') || hasRole('admin');
+      allow read, write: if hasUserRole('medic') || hasUserRole('admin');
       
       // Guardians can read their own camper's medical records
-      allow read: if isGuardianOf(resource.data.camperId);
+      allow read: if isParentOf(resource.data.camperId);
     }
 
     // Medication administration records (MAR)
     match /medication_logs/{logId} {
       // Only medical staff can create/update medication logs
-      allow read, write: if hasRole('medic') || hasRole('admin');
+      allow read, write: if hasUserRole('medic') || hasUserRole('admin');
       
       // Guardians can read logs for their campers
-      allow read: if isGuardianOf(resource.data.camperId);
+      allow read: if isParentOf(resource.data.camperId);
     }
 
     // Photo galleries - permission-based access
     match /photos/{photoId} {
       // TODO: Implement photo permission system
       // Photos should be accessible based on explicit permissions
-      allow read: if hasRole('staff') || hasRole('admin');
-      allow write: if hasRole('staff') || hasRole('admin');
+      allow read: if hasUserRole('staff_hired') || hasUserRole('admin');
+      allow write: if hasUserRole('staff_hired') || hasUserRole('admin');
     }
 
     // Payment records - sensitive financial data
@@ -72,25 +77,24 @@ service cloud.firestore {
       // Guardians can only see their own payments
       allow read: if isOwner(resource.data.guardianId);
       
-      // Admin and staff can manage payments
-      allow read, write: if hasRole('admin');
-      allow read: if hasRole('staff');
+      // Admins manage payments; baseline staff cannot read others' financials
+      allow read, write: if hasUserRole('admin');
     }
 
     // Reports and analytics - restricted to staff
     match /reports/{reportId} {
-      allow read, write: if hasRole('admin') || hasRole('staff');
+      allow read, write: if hasUserRole('admin') || hasUserRole('staff_hired');
     }
 
     // System configuration - admin only
     match /config/{configId} {
-      allow read, write: if hasRole('admin');
+      allow read, write: if hasUserRole('admin');
     }
 
     // Guardian-camper relationships
     match /guardianships/{relationshipId} {
-      allow read: if isOwner(resource.data.guardianId) || hasRole('admin') || hasRole('staff');
-      allow write: if hasRole('admin');
+      allow read: if isOwner(resource.data.guardianId) || hasUserRole('admin') || hasUserRole('staff_hired');
+      allow write: if hasUserRole('admin');
     }
 
     // Default deny all other access
