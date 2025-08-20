@@ -25,9 +25,13 @@ jobs:
           cache-dependency-path: "kateri-monorepo/yarn.lock"
 
       - name: Enable Corepack
-        run: corepack enable
-      - name: Pin Yarn
+        run: npx -y corepack@latest enable
+      - name: Pin Yarn 4
         run: corepack prepare yarn@4.1.0 --activate
+      - name: Verify Node/Yarn versions
+        run: |
+          node -v
+          yarn --version
 
       - name: Install dependencies
         working-directory: kateri-monorepo
