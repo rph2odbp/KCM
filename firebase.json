@@ -19,7 +19,7 @@
         "*.local"
       ],
       "predeploy": [
-        "yarn --cwd kateri-monorepo workspace @kateri/functions build"
+  "corepack yarn --cwd kateri-monorepo workspace @kateri/functions build"
       ]
     },
     {
@@ -33,15 +33,15 @@
         "*.local"
       ],
       "predeploy": [
-        "yarn --cwd kateri-monorepo workspace @kateri/functions-gen2 build"
+    "corepack yarn --cwd kateri-monorepo workspace @kateri/functions-gen2 build"
       ]
     }
   ],
   "hosting": {
     "public": "kateri-monorepo/packages/web/dist",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-    "rewrites": [{ "source": "**", "destination": "/index.html" }],
-    "predeploy": ["yarn --cwd kateri-monorepo workspace @kateri/web build"]
+  "rewrites": [{ "source": "**", "destination": "/index.html" }],
+  "predeploy": ["corepack yarn --cwd kateri-monorepo workspace @kateri/web build"]
   },
   "emulators": {
     "auth": {
