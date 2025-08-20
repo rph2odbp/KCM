@@ -12,6 +12,9 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    env:
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,19 +35,17 @@ jobs:
         run: yarn install --immutable
       - name: Validate required secrets
         run: |
-          if [ -z "${{ secrets.FIREBASE_TOKEN }}" ]; then
+          if [ -z "${FIREBASE_TOKEN}" ]; then
             echo "Missing required secret: FIREBASE_TOKEN. Create a repo secret named FIREBASE_TOKEN with your firebase login:ci token." >&2
             exit 1
           fi
       - name: Authenticate to Firebase (Service Account)
-        if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
+        if: ${{ env.FIREBASE_SERVICE_ACCOUNT != '' }}
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          credentials_json: ${{ env.FIREBASE_SERVICE_ACCOUNT }}
       - name: Deploy gen2 codebase (with SA + token)
-        if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        if: ${{ env.FIREBASE_SERVICE_ACCOUNT != '' }}
         run: |
           yarn dlx firebase-tools deploy \
             --only functions:gen2 \
@@ -52,9 +53,7 @@ jobs:
             --non-interactive \
             --token "$FIREBASE_TOKEN"
       - name: Deploy gen2 codebase (token-only)
-        if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT == '' }}
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        if: ${{ env.FIREBASE_SERVICE_ACCOUNT == '' }}
         run: |
           yarn dlx firebase-tools deploy \
             --only functions:gen2 \
