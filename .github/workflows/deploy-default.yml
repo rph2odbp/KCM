@@ -30,7 +30,7 @@ jobs:
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
       - name: Deploy default codebase
         run: |
-          yarn dlx firebase-tools deploy \
+          npx --yes firebase-tools deploy \
             --only functions:default \
             --project kcm-firebase-b7d6a \
             --non-interactive

@@ -34,4 +34,4 @@ jobs:
           FB_REGION: us-central1
           FB_DB_ID: kcm-db
         run: |
-          yarn dlx firebase-tools emulators:exec --only functions,firestore --project kcm-firebase-b7d6a -- node kateri-monorepo/scripts/emulator-smoke.js
+          npx --yes firebase-tools emulators:exec --only functions,firestore --project kcm-firebase-b7d6a -- node kateri-monorepo/scripts/emulator-smoke.js

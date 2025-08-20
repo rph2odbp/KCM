@@ -47,7 +47,7 @@ jobs:
       - name: Deploy gen2 codebase (with SA + token)
         if: ${{ env.FIREBASE_SERVICE_ACCOUNT != '' }}
         run: |
-          yarn dlx firebase-tools deploy \
+          npx --yes firebase-tools deploy \
             --only functions:gen2 \
             --project kcm-firebase-b7d6a \
             --non-interactive \
@@ -55,7 +55,7 @@ jobs:
       - name: Deploy gen2 codebase (token-only)
         if: ${{ env.FIREBASE_SERVICE_ACCOUNT == '' }}
         run: |
-          yarn dlx firebase-tools deploy \
+          npx --yes firebase-tools deploy \
             --only functions:gen2 \
             --project kcm-firebase-b7d6a \
             --non-interactive \
