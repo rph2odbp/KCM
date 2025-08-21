@@ -26,13 +26,11 @@ jobs:
       id-token: write
     env:
       PROJECT_ID: kcm-firebase-b7d6a
-  FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-  GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-  GCP_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
-  SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-
-  if: ${{ github.event_name != 'pull_request' }}
-
+      FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+    if: ${{ github.event_name != 'pull_request' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -114,14 +112,14 @@ jobs:
           fi
           echo "FIREBASE_TOKEN=$TOKEN" >> "$GITHUB_ENV"
 
-  - name: Deploy Firestore rules and indexes
+      - name: Deploy Firestore rules and indexes
         run: |
           yarn dlx firebase-tools@13.29.0 deploy \
             --only firestore:rules,firestore:indexes \
             --project "$PROJECT_ID" \
             --non-interactive
 
-  - name: Deploy Functions
+      - name: Deploy Functions
         run: |
           yarn dlx firebase-tools@13.29.0 deploy \
             --only functions \
