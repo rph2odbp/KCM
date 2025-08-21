@@ -31,7 +31,7 @@ jobs:
   GCP_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
   SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
 
-    if: github.event_name != 'pull_request'
+  if: ${{ github.event_name != 'pull_request' }}
 
     steps:
       - name: Checkout code
