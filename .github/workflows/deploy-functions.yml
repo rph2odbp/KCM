@@ -18,10 +18,6 @@ concurrency:
   group: deploy-functions-${{ github.ref }}
   cancel-in-progress: false
 
-permissions:
-  contents: read
-  id-token: write
-
 jobs:
   deploy:
     name: Deploy to Firebase
