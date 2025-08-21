@@ -30,6 +30,8 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    env:
+      PROJECT_ID: kcm-firebase-b7d6a
 
     # Skip deployment for pull requests
     if: github.event_name != 'pull_request'
@@ -128,23 +130,9 @@ jobs:
 
       - name: Set Firebase project alias
         run: |
-          case "${{ inputs.environment || 'prod' }}" in
-            dev) firebase use dev ;;
-            staging) firebase use staging ;;
-            prod) firebase use prod ;;
-          esac
+          # Single-project setup; all aliases point to the same project
+          firebase use prod
 
-      - name: Resolve PROJECT_ID for gcloud commands
-        shell: bash
-        run: |
-          set -euo pipefail
-          # If you have distinct projects per env, map them here.
-          case "${{ inputs.environment || 'prod' }}" in
-            dev) PROJECT_ID="kcm-firebase-b7d6a" ;;
-            staging) PROJECT_ID="kcm-firebase-b7d6a" ;;
-            prod) PROJECT_ID="kcm-firebase-b7d6a" ;;
-          esac
-          echo "PROJECT_ID=$PROJECT_ID" >> "$GITHUB_ENV"
 
       # Ensure the SENTRY_DSN secret exists and is accessible (optional; only runs if provided)
   - name: "Ensure Secret Manager: SENTRY_DSN (optional)"
