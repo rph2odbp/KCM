@@ -46,7 +46,7 @@ jobs:
 
       - name: Verify Yarn
         run: |
-          yarn --version || true
+          corepack --version || true
           corepack yarn --version
 
       - name: Install dependencies
