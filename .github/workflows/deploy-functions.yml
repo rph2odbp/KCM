@@ -18,11 +18,18 @@ concurrency:
   group: deploy-functions-${{ github.ref }}
   cancel-in-progress: false
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   deploy:
     name: Deploy to Firebase
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment || 'prod' }}
+    permissions:
+      contents: read
+      id-token: write
 
     # Skip deployment for pull requests
     if: github.event_name != 'pull_request'
