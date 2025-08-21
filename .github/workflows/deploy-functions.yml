@@ -38,24 +38,41 @@ jobs:
           cache: "yarn"
           cache-dependency-path: "kateri-monorepo/yarn.lock"
 
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Pin Yarn 4
-        run: corepack prepare yarn@4.1.0 --activate
-
-      - name: Verify Yarn
+      # Fix: Ensure Yarn 4 is used (Corepack manages Yarn version)
+      - name: Enable Corepack and activate Yarn 4.1.0
         run: |
-          corepack --version || true
-          corepack yarn --version
+          corepack enable
+          corepack prepare yarn@4.1.0 --activate
+          echo "Yarn version:"
+          yarn --version
+
+      # Optional recommendation: Use node-modules linker to avoid PnP issues
+      - name: Configure Yarn linker (node-modules)
+        working-directory: kateri-monorepo
+        run: |
+          if [ -f .yarnrc.yml ]; then
+            # Ensure nodeLinker is set to node-modules
+            if grep -q '^nodeLinker:' .yarnrc.yml; then
+              sed -i.bak 's/^nodeLinker:.*/nodeLinker: node-modules/' .yarnrc.yml
+            else
+              printf "\nnodeLinker: node-modules\n" >> .yarnrc.yml
+            fi
+          else
+            printf "nodeLinker: node-modules\n" > .yarnrc.yml
+          fi
+          echo "Using Yarn nodeLinker:"
+          grep '^nodeLinker:' .yarnrc.yml || true
 
       - name: Install dependencies
         working-directory: kateri-monorepo
-        run: corepack yarn install
+        env:
+          # Enforce lockfile fidelity with Yarn Berry
+          YARN_ENABLE_IMMUTABLE_INSTALLS: "true"
+        run: yarn install --immutable
 
       - name: Build functions
         working-directory: kateri-monorepo
-        run: corepack yarn workspace @kateri/functions build
+        run: yarn workspace @kateri/functions build
 
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
@@ -78,11 +95,11 @@ jobs:
 
       - name: Deploy Firestore rules and indexes (keyless)
         run: |
-          firebase deploy --only firestore:rules,firestore:indexes
+          firebase deploy --only firestore:rules,firestore:indexes --non-interactive
 
       - name: Deploy Functions (keyless)
         run: |
-          firebase deploy --only functions
+          firebase deploy --only functions --non-interactive
 
       - name: Post deployment status
         if: always()
