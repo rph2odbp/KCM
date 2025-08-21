@@ -23,7 +23,24 @@ const PROJECT_ID = process.env.FIREBASE_PROJECT || "kcm-firebase-b7d6a";
 const DATABASE_ID = process.env.FIRESTORE_DATABASE_ID || "kcm-db";
 
 if (!admin.apps.length) {
-  admin.initializeApp({ projectId: PROJECT_ID });
+  const saPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
+  const saJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  let options = { projectId: PROJECT_ID };
+  try {
+    if (saJson) {
+      const parsed = JSON.parse(saJson);
+      options = { credential: admin.credential.cert(parsed), projectId: PROJECT_ID };
+      console.log('[seed] Using inline service account JSON');
+    } else if (saPath) {
+      // eslint-disable-next-line import/no-dynamic-require, global-require
+      const loaded = JSON.parse(require('fs').readFileSync(saPath, 'utf8'));
+      options = { credential: admin.credential.cert(loaded), projectId: PROJECT_ID };
+      console.log('[seed] Using service account from path');
+    }
+  } catch (e) {
+    console.warn('[seed] Failed to parse provided service account credentials, falling back to ADC:', e.message);
+  }
+  admin.initializeApp(options);
 }
 const db = getFirestore(admin.app(), DATABASE_ID);
 

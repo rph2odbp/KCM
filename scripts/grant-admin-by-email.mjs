@@ -27,7 +27,24 @@ const PROJECT_ID =
   "kcm-firebase-b7d6a";
 
 if (!admin.apps.length) {
-  admin.initializeApp({ projectId: PROJECT_ID });
+  const saPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
+  const saJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  let options = { projectId: PROJECT_ID };
+  try {
+    if (saJson) {
+      const parsed = JSON.parse(saJson);
+      options = { credential: admin.credential.cert(parsed), projectId: PROJECT_ID };
+      console.log('[grant-admin] Using inline service account JSON');
+    } else if (saPath) {
+      // eslint-disable-next-line import/no-dynamic-require, global-require
+      const loaded = JSON.parse(require('fs').readFileSync(saPath, 'utf8'));
+      options = { credential: admin.credential.cert(loaded), projectId: PROJECT_ID };
+      console.log('[grant-admin] Using service account from path');
+    }
+  } catch (e) {
+    console.warn('[grant-admin] Failed to parse provided service account credentials, falling back to ADC:', e.message);
+  }
+  admin.initializeApp(options);
 }
 // Use the named Firestore database (kcm-db) to match the app and emulator seeding
 const db = getFirestore(admin.app(), "kcm-db");
