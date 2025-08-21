@@ -1,4 +1,4 @@
-name: Deploy Functions (Default codebase)
+name: Deploy Firebase Functions
 
 on:
   workflow_dispatch: {}
@@ -27,48 +27,25 @@ jobs:
     env:
       PROJECT_ID: kcm-firebase-b7d6a
 
-    # Skip deployment for pull requests
     if: github.event_name != 'pull_request'
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # IMPORTANT: Do NOT enable Yarn caching here (it invokes yarn before Corepack)
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
 
-      # Ensure Yarn 4 is used by this job and all subprocesses (including Firebase CLI)
       - name: Enable Corepack and pin Yarn 4.1.0
-        shell: bash
         run: |
           set -euxo pipefail
           corepack enable
           corepack prepare yarn@4.1.0 --activate
-          corepack --version || true
-          corepack yarn --version
-
-      # Force every 'yarn' invocation (even from Firebase CLI) to go through Corepack/Yarn 4
-      - name: Create Yarn shim (routes to Corepack)
-        shell: bash
-        run: |
-          set -euxo pipefail
-          mkdir -p "$HOME/bin"
-          cat > "$HOME/bin/yarn" <<'EOF'
-          #!/usr/bin/env bash
-          exec corepack yarn "$@"
-          EOF
-          chmod +x "$HOME/bin/yarn"
-          echo "$HOME/bin" >> "$GITHUB_PATH"
-          hash -r
-          echo "Yarn resolution order (shim should be first):"
-          which -a yarn || true
           yarn --version
 
-      # Optional recommendation: Use node-modules linker to avoid PnP issues with tooling
-      - name: Configure Yarn linker (node-modules)
+      - name: Ensure Yarn nodeLinker (node-modules)
         working-directory: kateri-monorepo
         shell: bash
         run: |
@@ -82,10 +59,8 @@ jobs:
           else
             printf "nodeLinker: node-modules\n" > .yarnrc.yml
           fi
-          echo "Configured Yarn nodeLinker:"
           grep '^nodeLinker:' .yarnrc.yml || true
 
-      # Cache Yarn 4 offline artifacts AFTER Corepack/shim is in place
       - name: Cache Yarn artifacts
         uses: actions/cache@v4
         with:
@@ -101,12 +76,24 @@ jobs:
           YARN_ENABLE_IMMUTABLE_INSTALLS: "true"
         run: yarn install --immutable
 
-      - name: Build functions
-        working-directory: kateri-monorepo
-        run: yarn workspace @kateri/functions build
+      # Auth: prefer FIREBASE_TOKEN, else fall back to WIF
+      - name: Validate auth inputs
+        if: ${{ secrets.FIREBASE_TOKEN == '' && (secrets.GCP_WORKLOAD_IDENTITY_PROVIDER == '' || secrets.GCP_SERVICE_ACCOUNT_EMAIL == '') }}
+        run: |
+          echo "Either set FIREBASE_TOKEN secret or configure GCP_WORKLOAD_IDENTITY_PROVIDER and GCP_SERVICE_ACCOUNT_EMAIL." >&2
+          exit 1
 
+<<<<<<< HEAD
       # Authenticate (Workload Identity Federation)
       - name: Authenticate to Google Cloud (WIF)
+=======
+      - name: Use Firebase CI token if available
+        if: ${{ secrets.FIREBASE_TOKEN != '' }}
+        run: echo "FIREBASE_TOKEN=${{ secrets.FIREBASE_TOKEN }}" >> "$GITHUB_ENV"
+
+      - name: Authenticate to Google Cloud (WIF)
+        if: ${{ secrets.FIREBASE_TOKEN == '' }}
+>>>>>>> 96216a2 (ci: replace deploy-functions workflow with user-provided version (manual + push triggers, token or WIF auth))
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
@@ -114,10 +101,10 @@ jobs:
           export_environment_variables: true
 
       - name: Setup gcloud CLI
+        if: ${{ secrets.FIREBASE_TOKEN == '' }}
         uses: google-github-actions/setup-gcloud@v2
-        with:
-          version: latest
 
+<<<<<<< HEAD
       # Fail early if required secrets or configuration are missing
       - name: Validate required configuration
         shell: bash
@@ -200,19 +187,29 @@ jobs:
             echo "✅ Deployment to prod completed successfully"
           else
             echo "❌ Deployment to prod failed"
+=======
+      - name: Export Firebase access token from gcloud
+        if: ${{ secrets.FIREBASE_TOKEN == '' }}
+        run: |
+          set -euo pipefail
+          TOKEN="$(gcloud auth print-access-token)"
+          if [ -z "$TOKEN" ]; then
+            echo "Failed to obtain access token from gcloud." >&2
+>>>>>>> 96216a2 (ci: replace deploy-functions workflow with user-provided version (manual + push triggers, token or WIF auth))
             exit 1
           fi
+          echo "FIREBASE_TOKEN=$TOKEN" >> "$GITHUB_ENV"
 
-  notify:
-    name: Notify Deployment
-    runs-on: ubuntu-latest
-    needs: deploy
-    if: always()
-    steps:
-      - name: Notify deployment status
+      - name: Deploy Firestore rules and indexes
         run: |
-          if [ "${{ needs.deploy.result }}" == "success" ]; then
-            echo "🚀 Functions deployed successfully to prod"
-          else
-            echo "💥 Function deployment failed"
-          fi
+          yarn dlx firebase-tools@13.29.0 deploy \
+            --only firestore:rules,firestore:indexes \
+            --project "$PROJECT_ID" \
+            --non-interactive
+
+      - name: Deploy Functions
+        run: |
+          yarn dlx firebase-tools@13.29.0 deploy \
+            --only functions \
+            --project "$PROJECT_ID" \
+            --non-interactive
