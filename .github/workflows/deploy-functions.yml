@@ -2,17 +2,7 @@ name: Deploy Functions (Default codebase)
 
 on:
   # Manual deployment only to avoid accidental deploys on push
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: "Environment to deploy to"
-        required: true
-        default: "prod"
-        type: choice
-        options:
-          - dev
-          - staging
-          - prod
+  workflow_dispatch: {}
 
 concurrency:
   group: deploy-functions-${{ github.ref }}
@@ -22,7 +12,7 @@ jobs:
   deploy:
     name: Deploy to Firebase
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment || 'prod' }}
+  environment: prod
     permissions:
       contents: read
       id-token: write
@@ -129,7 +119,6 @@ jobs:
           # Single-project setup; all aliases point to the same project
           firebase use prod
 
-
       # Ensure the SENTRY_DSN secret exists and is accessible (optional; only runs if provided)
       - name: "Ensure Secret Manager: SENTRY_DSN (optional)"
         if: ${{ secrets.SENTRY_DSN != '' }}
@@ -184,9 +173,9 @@ jobs:
         if: always()
         run: |
           if [ ${{ job.status }} == 'success' ]; then
-            echo "✅ Deployment to ${{ inputs.environment || 'prod' }} completed successfully"
+            echo "✅ Deployment to prod completed successfully"
           else
-            echo "❌ Deployment to ${{ inputs.environment || 'prod' }} failed"
+            echo "❌ Deployment to prod failed"
             exit 1
           fi
 
@@ -199,7 +188,7 @@ jobs:
       - name: Notify deployment status
         run: |
           if [ "${{ needs.deploy.result }}" == "success" ]; then
-            echo "🚀 Functions deployed successfully to ${{ inputs.environment || 'prod' }}"
+            echo "🚀 Functions deployed successfully to prod"
           else
             echo "💥 Function deployment failed"
           fi
