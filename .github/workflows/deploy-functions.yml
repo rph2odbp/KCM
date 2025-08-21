@@ -120,6 +120,12 @@ jobs:
           token_format: access_token
           access_token_scopes: https://www.googleapis.com/auth/cloud-platform
 
+      # Install gcloud to manage Secret Manager and IAM bindings
+      - name: Setup gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          version: latest
+
       - name: Set Firebase project alias
         run: |
           case "${{ inputs.environment || 'prod' }}" in
@@ -127,6 +133,48 @@ jobs:
             staging) firebase use staging ;;
             prod) firebase use prod ;;
           esac
+
+      - name: Resolve PROJECT_ID for gcloud commands
+        shell: bash
+        run: |
+          set -euo pipefail
+          # If you have distinct projects per env, map them here.
+          case "${{ inputs.environment || 'prod' }}" in
+            dev) PROJECT_ID="kcm-firebase-b7d6a" ;;
+            staging) PROJECT_ID="kcm-firebase-b7d6a" ;;
+            prod) PROJECT_ID="kcm-firebase-b7d6a" ;;
+          esac
+          echo "PROJECT_ID=$PROJECT_ID" >> "$GITHUB_ENV"
+
+      # Ensure the SENTRY_DSN secret exists and is accessible (optional; only runs if provided)
+      - name: Ensure Secret Manager: SENTRY_DSN (optional)
+        if: ${{ secrets.SENTRY_DSN != '' }}
+        shell: bash
+        env:
+          SENTRY_DSN_VALUE: ${{ secrets.SENTRY_DSN }}
+          DEPLOYER_SA: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+        run: |
+          set -euo pipefail
+          gcloud config set project "$PROJECT_ID"
+          # Create secret if missing
+          if ! gcloud secrets describe SENTRY_DSN >/dev/null 2>&1; then
+            echo "Creating secret SENTRY_DSN in $PROJECT_ID"
+            gcloud secrets create SENTRY_DSN --replication-policy="automatic"
+          fi
+          # Add a new version if a value is provided
+          if [ -n "${SENTRY_DSN_VALUE:-}" ]; then
+            printf "%s" "$SENTRY_DSN_VALUE" | gcloud secrets versions add SENTRY_DSN --data-file=-
+          fi
+          # Grant accessor to Cloud Functions runtime SA and viewer to deployer SA
+          PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')
+          RUNTIME_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+          # Best-effort IAM bindings (ignore if lacking permission)
+          gcloud secrets add-iam-policy-binding SENTRY_DSN \
+            --member="serviceAccount:${RUNTIME_SA}" \
+            --role="roles/secretmanager.secretAccessor" || true
+          gcloud secrets add-iam-policy-binding SENTRY_DSN \
+            --member="serviceAccount:${DEPLOYER_SA}" \
+            --role="roles/secretmanager.viewer" || true
 
       # Quick sanity check right before deploy
       - name: Debug Yarn before deploy

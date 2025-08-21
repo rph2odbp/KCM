@@ -11,7 +11,12 @@ export function ensureSentryInitialized() {
   if (sentryInitialized) return
   const dsn = process.env.SENTRY_DSN
   if (dsn) {
-    const env = process.env.SENTRY_ENV || process.env.GCLOUD_PROJECT || 'development'
+    // Prefer GOOGLE_CLOUD_PROJECT for Cloud Functions, fallback to GCLOUD_PROJECT
+    const env =
+      process.env.SENTRY_ENV ||
+      process.env.GOOGLE_CLOUD_PROJECT ||
+      process.env.GCLOUD_PROJECT ||
+      'development'
     const tracesSampleRate = Number(process.env.SENTRY_TRACES_SAMPLE_RATE || '0')
     Sentry.init({ dsn, environment: env, tracesSampleRate })
   }
