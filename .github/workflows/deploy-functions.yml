@@ -31,34 +31,37 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # IMPORTANT: Do NOT enable Yarn caching here (it invokes yarn before Corepack)
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "yarn"
-          cache-dependency-path: "kateri-monorepo/yarn.lock"
 
       # Ensure Yarn 4 is used by this job and all subprocesses (including Firebase CLI)
-      - name: Enable Corepack and pin Yarn 4.1.0 (ensure PATH)
+      - name: Enable Corepack and pin Yarn 4.1.0
         shell: bash
         run: |
           set -euxo pipefail
-
           corepack enable
           corepack prepare yarn@4.1.0 --activate
+          corepack --version || true
+          corepack yarn --version
 
-          # Prepend Corepack-managed yarn to PATH for all subsequent steps
-          YARN4_BIN="$(corepack which yarn)"
-          YARN4_DIR="$(dirname "$YARN4_BIN")"
-          echo "YARN4_DIR=$YARN4_DIR" >> "$GITHUB_ENV"
-          echo "$YARN4_DIR" >> "$GITHUB_PATH"
+      # Force every 'yarn' invocation (even from Firebase CLI) to go through Corepack/Yarn 4
+      - name: Create Yarn shim (routes to Corepack)
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p "$HOME/bin"
+          cat > "$HOME/bin/yarn" <<'EOF'
+          #!/usr/bin/env bash
+          exec corepack yarn "$@"
+          EOF
+          chmod +x "$HOME/bin/yarn"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
           hash -r
-
-          echo "Node:"
-          node -v
-          echo "Yarn resolution order:"
+          echo "Yarn resolution order (shim should be first):"
           which -a yarn || true
-          echo "Yarn version (should be 4.x):"
           yarn --version
 
       # Optional recommendation: Use node-modules linker to avoid PnP issues with tooling
@@ -78,6 +81,16 @@ jobs:
           fi
           echo "Configured Yarn nodeLinker:"
           grep '^nodeLinker:' .yarnrc.yml || true
+
+      # Cache Yarn 4 offline artifacts AFTER Corepack/shim is in place
+      - name: Cache Yarn artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            kateri-monorepo/.yarn/cache
+          key: ${{ runner.os }}-yarn4-${{ hashFiles('kateri-monorepo/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn4-
 
       - name: Install dependencies
         working-directory: kateri-monorepo
@@ -108,7 +121,7 @@ jobs:
             prod) firebase use prod ;;
           esac
 
-      # Small debug to prove Yarn 4 is the one Firebase will see
+      # Quick sanity check right before deploy
       - name: Debug Yarn before deploy
         shell: bash
         run: |
@@ -121,15 +134,11 @@ jobs:
       - name: Deploy Firestore rules and indexes (keyless)
         shell: bash
         run: |
-          # Belt-and-suspenders: ensure Yarn 4 is first for subprocesses
-          export PATH="${{ env.YARN4_DIR }}:$PATH"
           firebase deploy --only firestore:rules,firestore:indexes --non-interactive
 
       - name: Deploy Functions (keyless)
         shell: bash
         run: |
-          # Belt-and-suspenders: ensure Yarn 4 is first for subprocesses
-          export PATH="${{ env.YARN4_DIR }}:$PATH"
           firebase deploy --only functions --non-interactive
 
       - name: Post deployment status
