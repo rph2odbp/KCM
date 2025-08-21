@@ -1,4 +1,3 @@
-# bump: 2025-08-21 force re-index
 name: Deploy Firebase Functions
 
 on:
@@ -37,7 +36,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Enable Corepack and pin Yarn 4.1.0
         run: |
@@ -84,17 +83,12 @@ jobs:
           echo "Either set FIREBASE_TOKEN secret or configure GCP_WORKLOAD_IDENTITY_PROVIDER and GCP_SERVICE_ACCOUNT_EMAIL." >&2
           exit 1
 
-<<<<<<< HEAD
-      # Authenticate (Workload Identity Federation)
-      - name: Authenticate to Google Cloud (WIF)
-=======
       - name: Use Firebase CI token if available
         if: ${{ secrets.FIREBASE_TOKEN != '' }}
         run: echo "FIREBASE_TOKEN=${{ secrets.FIREBASE_TOKEN }}" >> "$GITHUB_ENV"
 
       - name: Authenticate to Google Cloud (WIF)
         if: ${{ secrets.FIREBASE_TOKEN == '' }}
->>>>>>> 96216a2 (ci: replace deploy-functions workflow with user-provided version (manual + push triggers, token or WIF auth))
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
@@ -105,90 +99,6 @@ jobs:
         if: ${{ secrets.FIREBASE_TOKEN == '' }}
         uses: google-github-actions/setup-gcloud@v2
 
-<<<<<<< HEAD
-      # Fail early if required secrets or configuration are missing
-      - name: Validate required configuration
-        shell: bash
-        run: |
-          set -euo pipefail
-          : "${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER?Missing secret: GCP_WORKLOAD_IDENTITY_PROVIDER }}"
-          : "${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL?Missing secret: GCP_SERVICE_ACCOUNT_EMAIL }}"
-          echo "All required GCP secrets present. PROJECT_ID=${PROJECT_ID}"
-
-      # Provide FIREBASE_TOKEN from gcloud (firebase-tools can use an access token)
-      - name: Export Firebase access token
-        shell: bash
-        run: |
-          set -euo pipefail
-          TOKEN="$(gcloud auth print-access-token)"
-          if [ -z "$TOKEN" ]; then
-            echo "Failed to obtain access token from gcloud." >&2
-            exit 1
-          fi
-          echo "FIREBASE_TOKEN=$TOKEN" >> "$GITHUB_ENV"
-
-      # Optional: ensure SENTRY_DSN secret exists (only runs if provided)
-      - name: "Ensure Secret Manager: SENTRY_DSN (optional)"
-        if: ${{ secrets.SENTRY_DSN != '' }}
-        shell: bash
-        env:
-          SENTRY_DSN_VALUE: ${{ secrets.SENTRY_DSN }}
-          DEPLOYER_SA: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
-        run: |
-          set -euo pipefail
-          gcloud config set project "$PROJECT_ID"
-          if ! gcloud secrets describe SENTRY_DSN >/dev/null 2>&1; then
-            echo "Creating secret SENTRY_DSN in $PROJECT_ID"
-            gcloud secrets create SENTRY_DSN --replication-policy="automatic"
-          fi
-          if [ -n "${SENTRY_DSN_VALUE:-}" ]; then
-            printf "%s" "$SENTRY_DSN_VALUE" | gcloud secrets versions add SENTRY_DSN --data-file=-
-          fi
-          PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')
-          RUNTIME_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
-          gcloud secrets add-iam-policy-binding SENTRY_DSN \
-            --member="serviceAccount:${RUNTIME_SA}" \
-            --role="roles/secretmanager.secretAccessor" || true
-          gcloud secrets add-iam-policy-binding SENTRY_DSN \
-            --member="serviceAccount:${DEPLOYER_SA}" \
-            --role="roles/secretmanager.viewer" || true
-
-      # Quick sanity check right before deploy
-      - name: Debug Yarn and Firebase before deploy
-        shell: bash
-        run: |
-          echo "PATH=$PATH"
-          which -a yarn || true
-          yarn --version || true
-          echo "corepack which yarn:"
-          corepack which yarn || true
-          echo "firebase-tools version:"
-          yarn dlx firebase-tools@latest --version || true
-
-      - name: Deploy Firestore rules and indexes (keyless)
-        shell: bash
-        run: |
-          yarn dlx firebase-tools@latest deploy \
-            --only firestore:rules,firestore:indexes \
-            --project "$PROJECT_ID" \
-            --non-interactive
-
-      - name: Deploy Functions (keyless)
-        shell: bash
-        run: |
-          yarn dlx firebase-tools@latest deploy \
-            --only functions \
-            --project "$PROJECT_ID" \
-            --non-interactive
-
-      - name: Post deployment status
-        if: always()
-        run: |
-          if [ ${{ job.status }} == 'success' ]; then
-            echo "✅ Deployment to prod completed successfully"
-          else
-            echo "❌ Deployment to prod failed"
-=======
       - name: Export Firebase access token from gcloud
         if: ${{ secrets.FIREBASE_TOKEN == '' }}
         run: |
@@ -196,7 +106,6 @@ jobs:
           TOKEN="$(gcloud auth print-access-token)"
           if [ -z "$TOKEN" ]; then
             echo "Failed to obtain access token from gcloud." >&2
->>>>>>> 96216a2 (ci: replace deploy-functions workflow with user-provided version (manual + push triggers, token or WIF auth))
             exit 1
           fi
           echo "FIREBASE_TOKEN=$TOKEN" >> "$GITHUB_ENV"
