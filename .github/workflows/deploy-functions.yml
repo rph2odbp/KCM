@@ -38,20 +38,36 @@ jobs:
           cache: "yarn"
           cache-dependency-path: "kateri-monorepo/yarn.lock"
 
-      # Fix: Ensure Yarn 4 is used (Corepack manages Yarn version)
-      - name: Enable Corepack and activate Yarn 4.1.0
+      # Ensure Yarn 4 is used by this job and all subprocesses (including Firebase CLI)
+      - name: Enable Corepack and pin Yarn 4.1.0 (ensure PATH)
+        shell: bash
         run: |
+          set -euxo pipefail
+
           corepack enable
           corepack prepare yarn@4.1.0 --activate
-          echo "Yarn version:"
+
+          # Prepend Corepack-managed yarn to PATH for all subsequent steps
+          YARN4_BIN="$(corepack which yarn)"
+          YARN4_DIR="$(dirname "$YARN4_BIN")"
+          echo "YARN4_DIR=$YARN4_DIR" >> "$GITHUB_ENV"
+          echo "$YARN4_DIR" >> "$GITHUB_PATH"
+          hash -r
+
+          echo "Node:"
+          node -v
+          echo "Yarn resolution order:"
+          which -a yarn || true
+          echo "Yarn version (should be 4.x):"
           yarn --version
 
-      # Optional recommendation: Use node-modules linker to avoid PnP issues
+      # Optional recommendation: Use node-modules linker to avoid PnP issues with tooling
       - name: Configure Yarn linker (node-modules)
         working-directory: kateri-monorepo
+        shell: bash
         run: |
+          set -euo pipefail
           if [ -f .yarnrc.yml ]; then
-            # Ensure nodeLinker is set to node-modules
             if grep -q '^nodeLinker:' .yarnrc.yml; then
               sed -i.bak 's/^nodeLinker:.*/nodeLinker: node-modules/' .yarnrc.yml
             else
@@ -60,13 +76,12 @@ jobs:
           else
             printf "nodeLinker: node-modules\n" > .yarnrc.yml
           fi
-          echo "Using Yarn nodeLinker:"
+          echo "Configured Yarn nodeLinker:"
           grep '^nodeLinker:' .yarnrc.yml || true
 
       - name: Install dependencies
         working-directory: kateri-monorepo
         env:
-          # Enforce lockfile fidelity with Yarn Berry
           YARN_ENABLE_IMMUTABLE_INSTALLS: "true"
         run: yarn install --immutable
 
@@ -93,12 +108,28 @@ jobs:
             prod) firebase use prod ;;
           esac
 
-      - name: Deploy Firestore rules and indexes (keyless)
+      # Small debug to prove Yarn 4 is the one Firebase will see
+      - name: Debug Yarn before deploy
+        shell: bash
         run: |
+          echo "PATH=$PATH"
+          which -a yarn || true
+          yarn --version || true
+          echo "corepack which yarn:"
+          corepack which yarn || true
+
+      - name: Deploy Firestore rules and indexes (keyless)
+        shell: bash
+        run: |
+          # Belt-and-suspenders: ensure Yarn 4 is first for subprocesses
+          export PATH="${{ env.YARN4_DIR }}:$PATH"
           firebase deploy --only firestore:rules,firestore:indexes --non-interactive
 
       - name: Deploy Functions (keyless)
+        shell: bash
         run: |
+          # Belt-and-suspenders: ensure Yarn 4 is first for subprocesses
+          export PATH="${{ env.YARN4_DIR }}:$PATH"
           firebase deploy --only functions --non-interactive
 
       - name: Post deployment status
