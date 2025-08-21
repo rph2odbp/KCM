@@ -75,6 +75,21 @@ updates:
       prefix: "deps(functions)"
       include: "scope"
 
+  # Enable version updates for functions-gen2 package
+  - package-ecosystem: "npm"
+    directory: "/kateri-monorepo/packages/functions-gen2"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    security-updates-only: true
+    reviewers:
+      - "rph2odbp"
+    commit-message:
+      prefix: "deps(functions-gen2)"
+      include: "scope"
+
   # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"

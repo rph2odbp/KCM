@@ -13,19 +13,22 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
 
-      - name: Enable Corepack (Yarn 4)
-        run: corepack enable
+      - name: Enable Corepack
+        run: npx -y corepack@latest enable
+      
+      - name: Pin Yarn 4
+        run: corepack prepare yarn@4.1.0 --activate
 
       - name: Delete legacy dailyHealthCheck (Gen1)
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
-          yarn dlx firebase-tools functions:delete dailyHealthCheck --region us-central1 --project kcm-firebase-b7d6a --force
+          corepack yarn dlx firebase-tools functions:delete dailyHealthCheck --region us-central1 --project kcm-firebase-b7d6a --force
 
       - name: Deploy default codebase to finalize cleanup
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
-          yarn dlx firebase-tools deploy --only functions:default --project kcm-firebase-b7d6a --non-interactive --force
+          corepack yarn dlx firebase-tools deploy --only functions:default --project kcm-firebase-b7d6a --non-interactive --force

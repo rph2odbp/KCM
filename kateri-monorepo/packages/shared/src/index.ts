@@ -18,108 +18,128 @@ export const CamperIdSchema = z.string().uuid()
 
 export const UserRoleSchema = z.enum(['guardian', 'staff', 'admin', 'medic'])
 
-export const UserProfileSchema = z.object({
-  id: UserIdSchema,
-  email: z.string().email(),
-  firstName: z.string().min(1),
-  lastName: z.string().min(1),
-  role: UserRoleSchema,
-  phoneNumber: z.string().optional(),
-  isActive: z.boolean().default(true),
-}).merge(TimestampSchema)
+export const UserProfileSchema = z
+  .object({
+    id: UserIdSchema,
+    email: z.string().email(),
+    firstName: z.string().min(1),
+    lastName: z.string().min(1),
+    role: UserRoleSchema,
+    phoneNumber: z.string().optional(),
+    isActive: z.boolean().default(true),
+  })
+  .merge(TimestampSchema)
 
 // ============================================================================
 // Camper Management
 // ============================================================================
 
-export const CamperSchema = z.object({
-  id: CamperIdSchema,
-  firstName: z.string().min(1),
-  lastName: z.string().min(1),
-  dateOfBirth: z.date(),
-  guardianId: UserIdSchema,
-  emergencyContacts: z.array(z.object({
-    name: z.string().min(1),
-    relationship: z.string().min(1),
-    phoneNumber: z.string().min(1),
-    email: z.string().email().optional(),
-  })),
-  registrationStatus: z.enum(['pending', 'approved', 'rejected', 'cancelled']),
-  medicalInfo: z.object({
-    allergies: z.array(z.string()).default([]),
-    medications: z.array(z.string()).default([]),
-    conditions: z.array(z.string()).default([]),
-    additionalNotes: z.string().optional(),
-  }),
-}).merge(TimestampSchema)
+export const CamperSchema = z
+  .object({
+    id: CamperIdSchema,
+    firstName: z.string().min(1),
+    lastName: z.string().min(1),
+    dateOfBirth: z.date(),
+    guardianId: UserIdSchema,
+    emergencyContacts: z.array(
+      z.object({
+        name: z.string().min(1),
+        relationship: z.string().min(1),
+        phoneNumber: z.string().min(1),
+        email: z.string().email().optional(),
+      }),
+    ),
+    registrationStatus: z.enum(['pending', 'approved', 'rejected', 'cancelled']),
+    medicalInfo: z.object({
+      allergies: z.array(z.string()).default([]),
+      medications: z.array(z.string()).default([]),
+      conditions: z.array(z.string()).default([]),
+      additionalNotes: z.string().optional(),
+    }),
+  })
+  .merge(TimestampSchema)
 
 // ============================================================================
 // Medical Records (MAR)
 // ============================================================================
 
-export const MedicationLogSchema = z.object({
-  id: z.string().uuid(),
-  camperId: CamperIdSchema,
-  medicationName: z.string().min(1),
-  dosage: z.string().min(1),
-  administeredBy: UserIdSchema,
-  administeredAt: z.date(),
-  notes: z.string().optional(),
-  side_effects: z.string().optional(),
-}).merge(TimestampSchema)
+export const MedicationLogSchema = z
+  .object({
+    id: z.string().uuid(),
+    camperId: CamperIdSchema,
+    medicationName: z.string().min(1),
+    dosage: z.string().min(1),
+    administeredBy: UserIdSchema,
+    administeredAt: z.date(),
+    notes: z.string().optional(),
+    side_effects: z.string().optional(),
+  })
+  .merge(TimestampSchema)
 
-export const MedicalRecordSchema = z.object({
-  id: z.string().uuid(),
-  camperId: CamperIdSchema,
-  recordType: z.enum(['incident', 'medication', 'illness', 'injury', 'allergy_reaction']),
-  description: z.string().min(1),
-  treatment: z.string().optional(),
-  recordedBy: UserIdSchema,
-  severity: z.enum(['low', 'medium', 'high', 'critical']),
-  resolved: z.boolean().default(false),
-}).merge(TimestampSchema)
+export const MedicalRecordSchema = z
+  .object({
+    id: z.string().uuid(),
+    camperId: CamperIdSchema,
+    recordType: z.enum(['incident', 'medication', 'illness', 'injury', 'allergy_reaction']),
+    description: z.string().min(1),
+    treatment: z.string().optional(),
+    recordedBy: UserIdSchema,
+    severity: z.enum(['low', 'medium', 'high', 'critical']),
+    resolved: z.boolean().default(false),
+  })
+  .merge(TimestampSchema)
 
 // ============================================================================
 // Payment Processing
 // ============================================================================
 
-export const PaymentStatusSchema = z.enum(['pending', 'processing', 'completed', 'failed', 'refunded'])
+export const PaymentStatusSchema = z.enum([
+  'pending',
+  'processing',
+  'completed',
+  'failed',
+  'refunded',
+])
 
-export const PaymentSchema = z.object({
-  id: z.string().uuid(),
-  guardianId: UserIdSchema,
-  camperId: CamperIdSchema,
-  amount: z.number().positive(),
-  currency: z.string().default('USD'),
-  status: PaymentStatusSchema,
-  paymentMethod: z.string().optional(),
-  adyenReference: z.string().optional(),
-  description: z.string().optional(),
-}).merge(TimestampSchema)
+export const PaymentSchema = z
+  .object({
+    id: z.string().uuid(),
+    guardianId: UserIdSchema,
+    camperId: CamperIdSchema,
+    amount: z.number().positive(),
+    currency: z.string().default('USD'),
+    status: PaymentStatusSchema,
+    paymentMethod: z.string().optional(),
+    adyenReference: z.string().optional(),
+    description: z.string().optional(),
+  })
+  .merge(TimestampSchema)
 
 // ============================================================================
 // Photo Gallery
 // ============================================================================
 
-export const PhotoSchema = z.object({
-  id: z.string().uuid(),
-  url: z.string().url(),
-  thumbnail: z.string().url().optional(),
-  uploadedBy: UserIdSchema,
-  tags: z.array(z.string()).default([]),
-  permissions: z.object({
-    public: z.boolean().default(false),
-    allowedGuardians: z.array(UserIdSchema).default([]),
-    allowedCampers: z.array(CamperIdSchema).default([]),
-  }),
-  metadata: z.object({
-    filename: z.string(),
-    size: z.number(),
-    mimeType: z.string(),
-    width: z.number().optional(),
-    height: z.number().optional(),
-  }),
-}).merge(TimestampSchema)
+export const PhotoSchema = z
+  .object({
+    id: z.string().uuid(),
+    url: z.string().url(),
+    thumbnail: z.string().url().optional(),
+    uploadedBy: UserIdSchema,
+    tags: z.array(z.string()).default([]),
+    permissions: z.object({
+      public: z.boolean().default(false),
+      allowedGuardians: z.array(UserIdSchema).default([]),
+      allowedCampers: z.array(CamperIdSchema).default([]),
+    }),
+    metadata: z.object({
+      filename: z.string(),
+      size: z.number(),
+      mimeType: z.string(),
+      width: z.number().optional(),
+      height: z.number().optional(),
+    }),
+  })
+  .merge(TimestampSchema)
 
 // ============================================================================
 // Type Exports

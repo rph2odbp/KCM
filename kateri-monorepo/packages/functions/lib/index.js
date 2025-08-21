@@ -33,10 +33,37 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.setUserRoles = void 0;
 const admin = __importStar(require("firebase-admin"));
 const firestore_1 = require("firebase-admin/firestore");
 // Initialize Firebase Admin SDK for compatibility; no Gen 1 exports remain.
 admin.initializeApp();
 (0, firestore_1.getFirestore)('kcm-db');
 // Auth triggers migrated to Gen 2 (see @kateri/functions-gen2)
+// Callable admin helper (local dev) to set custom claims and mirror roles to /users/{uid}
+// Usage (dev): call via admin SDK or HTTP call with server credentials.
+// Note: in production, protect this behind proper admin checks.
+const setUserRoles = async (req, res) => {
+    try {
+        const { uid, roles } = req.body || {};
+        if (!uid || !Array.isArray(roles)) {
+            res.status(400).send({ error: 'uid and roles[] required' });
+            return;
+        }
+        const claims = {};
+        roles.forEach((r) => (claims[r] = true));
+        await admin.auth().setCustomUserClaims(uid, claims);
+        const db = (0, firestore_1.getFirestore)();
+        await db
+            .collection('users')
+            .doc(uid)
+            .set({ roles, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        res.status(200).send({ ok: true });
+    }
+    catch (e) {
+        console.error('setUserRoles error', e);
+        res.status(500).send({ error: String(e) });
+    }
+};
+exports.setUserRoles = setUserRoles;
 //# sourceMappingURL=index.js.map

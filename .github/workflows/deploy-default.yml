@@ -18,11 +18,14 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Enable Corepack (Yarn 4)
-        run: corepack enable
+      - name: Enable Corepack
+        run: npx -y corepack@latest enable
+      
+      - name: Pin Yarn 4  
+        run: corepack prepare yarn@4.1.0 --activate
 
       - name: Install workspace dependencies
-        run: yarn --cwd kateri-monorepo install --immutable
+        run: corepack yarn --cwd kateri-monorepo install
       - name: Authenticate to Google Cloud (OIDC)
         uses: google-github-actions/auth@v2
         with:
