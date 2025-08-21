@@ -26,6 +26,10 @@ jobs:
       id-token: write
     env:
       PROJECT_ID: kcm-firebase-b7d6a
+  FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+  GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+  GCP_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+  SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
 
     if: github.event_name != 'pull_request'
 
@@ -78,29 +82,29 @@ jobs:
 
       # Auth: prefer FIREBASE_TOKEN, else fall back to WIF
       - name: Validate auth inputs
-        if: ${{ secrets.FIREBASE_TOKEN == '' && (secrets.GCP_WORKLOAD_IDENTITY_PROVIDER == '' || secrets.GCP_SERVICE_ACCOUNT_EMAIL == '') }}
+        if: ${{ env.FIREBASE_TOKEN == '' && (env.GCP_WORKLOAD_IDENTITY_PROVIDER == '' || env.GCP_SERVICE_ACCOUNT_EMAIL == '') }}
         run: |
           echo "Either set FIREBASE_TOKEN secret or configure GCP_WORKLOAD_IDENTITY_PROVIDER and GCP_SERVICE_ACCOUNT_EMAIL." >&2
           exit 1
 
       - name: Use Firebase CI token if available
-        if: ${{ secrets.FIREBASE_TOKEN != '' }}
-        run: echo "FIREBASE_TOKEN=${{ secrets.FIREBASE_TOKEN }}" >> "$GITHUB_ENV"
+        if: ${{ env.FIREBASE_TOKEN != '' }}
+        run: echo "FIREBASE_TOKEN=${{ env.FIREBASE_TOKEN }}" >> "$GITHUB_ENV"
 
       - name: Authenticate to Google Cloud (WIF)
-        if: ${{ secrets.FIREBASE_TOKEN == '' }}
+        if: ${{ env.FIREBASE_TOKEN == '' }}
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT_EMAIL }}
           export_environment_variables: true
 
       - name: Setup gcloud CLI
-        if: ${{ secrets.FIREBASE_TOKEN == '' }}
+        if: ${{ env.FIREBASE_TOKEN == '' }}
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Export Firebase access token from gcloud
-        if: ${{ secrets.FIREBASE_TOKEN == '' }}
+        if: ${{ env.FIREBASE_TOKEN == '' }}
         run: |
           set -euo pipefail
           TOKEN="$(gcloud auth print-access-token)"
@@ -110,14 +114,14 @@ jobs:
           fi
           echo "FIREBASE_TOKEN=$TOKEN" >> "$GITHUB_ENV"
 
-      - name: Deploy Firestore rules and indexes
+  - name: Deploy Firestore rules and indexes
         run: |
           yarn dlx firebase-tools@13.29.0 deploy \
             --only firestore:rules,firestore:indexes \
             --project "$PROJECT_ID" \
             --non-interactive
 
-      - name: Deploy Functions
+  - name: Deploy Functions
         run: |
           yarn dlx firebase-tools@13.29.0 deploy \
             --only functions \
