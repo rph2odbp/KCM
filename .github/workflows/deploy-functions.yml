@@ -101,6 +101,18 @@ jobs:
         if: ${{ env.FIREBASE_TOKEN == '' }}
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Best-effort grant Firestore access to runtime SA
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcloud config set project "$PROJECT_ID"
+          PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')
+          RUNTIME_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+          echo "Granting roles/datastore.user to ${RUNTIME_SA} (best effort)"
+          gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+            --member="serviceAccount:${RUNTIME_SA}" \
+            --role="roles/datastore.user" || true
+
       - name: Export Firebase access token from gcloud
         if: ${{ env.FIREBASE_TOKEN == '' }}
         run: |
@@ -119,9 +131,24 @@ jobs:
             --project "$PROJECT_ID" \
             --non-interactive
 
-      - name: Deploy Functions
+      - name: Deploy Functions (with debug)
         run: |
           yarn dlx firebase-tools@13.29.0 deploy \
             --only functions \
             --project "$PROJECT_ID" \
-            --non-interactive
+            --non-interactive \
+            --debug
+
+      - name: List deployed functions
+        if: always()
+        run: |
+          yarn dlx firebase-tools@13.29.0 functions:list \
+            --project "$PROJECT_ID" || true
+
+      - name: Tail logs for createUserProfile
+        if: always()
+        run: |
+          yarn dlx firebase-tools@13.29.0 functions:log \
+            --only createUserProfile \
+            --project "$PROJECT_ID" \
+            --limit 100 || true
