@@ -5,9 +5,9 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to deploy to'
+        description: "Environment to deploy to"
         required: true
-        default: 'prod'
+        default: "prod"
         type: choice
         options:
           - dev
@@ -23,10 +23,10 @@ jobs:
     name: Deploy to Firebase
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment || 'prod' }}
-    
+
     # Skip deployment for pull requests
     if: github.event_name != 'pull_request'
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -35,14 +35,19 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: 'yarn'
-          cache-dependency-path: 'kateri-monorepo/yarn.lock'
+          cache: "yarn"
+          cache-dependency-path: "kateri-monorepo/yarn.lock"
 
       - name: Enable Corepack
-        run: npx -y corepack@latest enable
-      
+  run: corepack enable
+
       - name: Pin Yarn 4
         run: corepack prepare yarn@4.1.0 --activate
+      
+      - name: Verify Yarn
+        run: |
+          yarn --version || true
+          corepack yarn --version
 
       - name: Install dependencies
         working-directory: kateri-monorepo

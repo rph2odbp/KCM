@@ -10,32 +10,37 @@ jobs:
       contents: read
       id-token: write
   steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    - name: Checkout
+      uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: "22"
 
       - name: Enable Corepack
-        run: npx -y corepack@latest enable
-      
-      - name: Pin Yarn 4  
+        run: corepack enable
+
+      - name: Pin Yarn 4
         run: corepack prepare yarn@4.1.0 --activate
+
+      - name: Verify Yarn
+        run: |
+          yarn --version || true
+          corepack yarn --version
 
       - name: Install workspace dependencies
         run: corepack yarn --cwd kateri-monorepo install
-      - name: Authenticate (Workload Identity Federation)
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
-          token_format: access_token
-          access_token_scopes: https://www.googleapis.com/auth/cloud-platform
-      - name: Deploy default codebase (keyless)
-        run: |
-          npx --yes firebase-tools deploy \
-            --only functions:default \
-            --project kcm-firebase-b7d6a \
-            --non-interactive
+    - name: Authenticate (Workload Identity Federation)
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+        service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+        token_format: access_token
+        access_token_scopes: https://www.googleapis.com/auth/cloud-platform
+    - name: Deploy default codebase (keyless)
+      run: |
+        npx --yes firebase-tools deploy \
+          --only functions:default \
+          --project kcm-firebase-b7d6a \
+          --non-interactive
