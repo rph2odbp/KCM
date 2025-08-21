@@ -147,7 +147,7 @@ jobs:
           echo "PROJECT_ID=$PROJECT_ID" >> "$GITHUB_ENV"
 
       # Ensure the SENTRY_DSN secret exists and is accessible (optional; only runs if provided)
-      - name: Ensure Secret Manager: SENTRY_DSN (optional)
+  - name: "Ensure Secret Manager: SENTRY_DSN (optional)"
         if: ${{ secrets.SENTRY_DSN != '' }}
         shell: bash
         env:
