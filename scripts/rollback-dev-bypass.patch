@@ -1,0 +1,25 @@
+# Patch to reintroduce a dev session write bypass (rollback) into firestore.rules
+# Usage:
+#   git apply scripts/rollback-dev-bypass.patch
+#   firebase deploy --only firestore:rules --project kcm-firebase-b7d6a
+# Remove after emergency use.
+
+*** Begin Patch
+*** Update File: firestore.rules
+@@
+-  // Dev bypass removed for single-project production deployment
++  // DEV ONLY: Bypass to allow unauthenticated session writes (EMERGENCY / TEMPORARY)
++  function devBypassSessionsWrite() {
++    return exists(/databases/$(database)/documents/config/dev) &&
++           get(/databases/$(database)/documents/config/dev).data.allowSessionWriteForAll == true;
++  }
+@@
+-    // Sessions: public read; admin-only write; registrations controlled separately
++    // Sessions: public read; admin-only write normally; dev bypass optionally allows writes
+@@
+-      allow write: if hasUserRole('admin');
++      allow write: if hasUserRole('admin') || devBypassSessionsWrite();
+@@
+-        allow write: if hasUserRole('admin');
++        allow write: if hasUserRole('admin') || devBypassSessionsWrite();
+*** End Patch

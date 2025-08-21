@@ -11,6 +11,8 @@
     "build": "yarn workspaces foreach -A -v run build",
     "test": "yarn workspaces foreach -A -v run test",
     "lint": "yarn workspaces foreach -A -v run lint",
+    "deploy:rules": "yarn dlx firebase-tools deploy --only firestore:rules --project kcm-firebase-b7d6a",
+    "rules:diff": "yarn dlx firebase-tools firestore:rules:dryrun --project kcm-firebase-b7d6a || echo 'Dry run complete'",
     "typecheck": "yarn workspaces foreach -A -v run typecheck",
     "format": "prettier --write \"**/*.{js,ts,tsx,json,md}\"",
     "start": "concurrently \"yarn workspace:web dev\" \"yarn workspace:functions serve\"",

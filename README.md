@@ -268,6 +268,47 @@ Secrets are managed through GitHub Environment secrets:
 - Least-privilege security rules
 - Separate collections for different user types (guardians, staff, admin, medic)
 
+#### Updating & Deploying Firestore Rules (Automation Ready)
+
+Workflow for safe prod changes:
+
+1. Edit `firestore.rules` locally.
+2. (Optional) Run a dry run (lint/compile) — Firestore has limited tooling; for structural diff just use git:
+
+```bash
+git diff firestore.rules
+```
+
+3. Deploy ONLY rules (avoids touching functions/hosting):
+
+```bash
+yarn --cwd kateri-monorepo deploy:rules
+```
+
+4. Verify in console (Firestore -> Rules) and exercise a restricted action in the app.
+5. Rollback (if needed) via git:
+
+```bash
+git checkout HEAD~1 firestore.rules && yarn --cwd kateri-monorepo deploy:rules
+```
+
+Emergency temporary bypass (session writes) rollback patch is stored at `scripts/rollback-dev-bypass.patch`:
+
+```bash
+git apply scripts/rollback-dev-bypass.patch
+yarn --cwd kateri-monorepo deploy:rules
+```
+
+Immediately revert the patch after emergency by resetting the file and redeploying.
+
+Seeding (idempotent) for production minimal bootstrap:
+
+```bash
+node scripts/seed-production.mjs <adminEmail> 2026
+```
+
+Requires the target admin to have already authenticated once so an Auth user exists. The script will ensure `roles` contains `admin` and create a placeholder session skeleton if a year is supplied.
+
 ## 🎯 Feature Roadmap
 
 ### Phase 1: Core Infrastructure ✅
