@@ -30,7 +30,7 @@ jobs:
       - name: Verify Node/Yarn versions
         run: |
           node -v
-          yarn --version
+          corepack yarn --version
       - name: Install (non-immutable)
         working-directory: kateri-monorepo
         run: corepack yarn install
