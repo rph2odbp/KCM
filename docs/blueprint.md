@@ -1,0 +1,178 @@
+# Kateri Camp Management (KCM) – Product Blueprint
+
+This blueprint captures the current product vision and working agreements for the Parent, Staff, and Admin panels. It reflects decisions made so far and intentionally includes open questions/TBDs for future resolution.
+
+## Overview
+
+- Monorepo: Yarn workspaces (`@kateri/web`, `@kateri/functions`, `@kateri/functions-gen2`, `@kateri/shared`).
+- Frontend: React + Vite + React Router + React Query.
+- Backend: Firebase (Auth, Firestore, Storage, Functions Gen1/Gen2), Sentry optional.
+- Local dev: Firebase Emulators with same-origin proxy to avoid CORS, helper scripts, seeded users/roles.
+- Types: Zod schemas in `@kateri/shared` define data shapes and validation.
+- Security: Firestore rules enforce role-based and ownership access.
+
+## Roles and Permissions
+
+- Global roles: `parent`, `staff`, `admin`, `medic` (stored as array field `users/{uid}.roles`).
+- Staff subtypes: `staff_hired` indicates elevated staff access (rosters, reports).
+- Defaults: New registrations/users default to `parent, staff`; `admin` is assigned via whitelist or admin action.
+- Key rules (high level):
+  - Parents can read/write their own profile and campers; create registrations for their campers only.
+  - Staff (hired) can read all campers, sessions, and reports; writes limited to admins.
+  - Medics can read/write medical records and logs.
+  - Admins can read/write everything, manage roles, and system config.
+
+## Panels
+
+### Parent Panel
+
+- Dashboard
+  - Welcome + quick actions.
+  - List available sessions by year and gender; filtered by camper grade gates (2nd–8th completed) and camper gender.
+  - Show registration status per camper (incomplete, pendingPayment, confirmed, waitlisted, cancelled).
+- Registration Flow (per camper, per session)
+  - Year → Session pathing: `sessions/{year}/{boys|girls}/{sessionId}` → `registrations/{registrationId}`.
+  - Stepper: Parent info → Camper info → Health/Medical → Consents → Payment.
+  - Grade gating: Camper `gradeCompleted` must be 2–8 before camp; enforced server-side and in UI.
+  - Add-ons: `messagePackets` (integer). More add-ons TBD.
+  - Payments: Deposit flag + `totalDue` (Adyen integration later).
+  - Post-registration: ability to resume incomplete registrations and upload missing docs.
+- Camper Management
+  - Create/edit camper profiles (name, DOB, gender, grade, emergency contacts, medical info skeleton).
+  - Parent-centric terminology (no “guardian” in UI).
+- Account
+  - View/update parent profile; password reset; sign-in via Google or email/password.
+
+### Staff Panel
+
+- Rosters and Operations
+  - View rosters by year → session; camper lists with basic details.
+  - Cabin assignment (TBD), arrival/departure status (TBD), check-in/out tooling (TBD).
+  - Staff subtypes and permissions: baseline `staff` vs `staff_hired` (hired has roster/report access).
+- Photos (TBD)
+  - Upload and manage gallery with permission tags.
+- Reports (read-only for hired staff)
+  - Basic analytics and exports (TBD).
+
+### Admin Panel
+
+- User Management
+  - Search users; assign/revoke roles (including `admin`, `staff_hired`, `medic`).
+- Sessions Management
+  - CRUD sessions with fields: `year`, `name`, `gender` (`boys|girls`), `startDate`, `endDate`, `capacity`, `price`, `waitlistOpen`.
+  - Structure: `sessions/{year}/{boys|girls}/{sessionId}`.
+  - Hiring workflows and staff subtype assignments (TBD).
+- Registrations Oversight
+  - Read all registrations; manage waitlists, confirmations, cancellations.
+- Payments and Finance (TBD)
+  - Reconcile deposits and balances; exports.
+- System Config
+  - Feature flags/config docs; Sentry, maintenance banners (TBD).
+
+## Summer 2026 Session Plan
+
+Authoritative list of sessions for the 2026 summer (capacity 210 each):
+
+- Boys Camp Week 1 — May 31, 2026 → June 6, 2026 — capacity 210
+- Boys Camp Week 2 — June 7, 2026 → June 13, 2026 — capacity 210
+- Boys Camp Week 3 — June 14, 2026 → June 20, 2026 — capacity 210
+- Boys Camp Week 4 — June 21, 2026 → June 27, 2026 — capacity 210
+- Girls Camp Week 1 — June 28, 2026 → July 4, 2026 — capacity 210
+- Girls Camp Week 2 — July 5, 2026 → July 11, 2026 — capacity 210
+- Girls Camp Week 3 — July 12, 2026 → July 18, 2026 — capacity 210
+- Girls Camp Week 4 — July 19, 2026 → July 25, 2026 — capacity 210
+
+Recommended IDs under `sessions/2026/{boys|girls}/{sessionId}`:
+
+- Boys: `boys-w1`, `boys-w2`, `boys-w3`, `boys-w4`
+- Girls: `girls-w1`, `girls-w2`, `girls-w3`, `girls-w4`
+
+Open items for sessions:
+
+- Capacity enforcement and waitlist auto-promotion logic (server-side + UI).
+- Pricing per session and deposit rules; scholarships/discounts.
+- Admin bulk tools for import/export and quick edits.
+
+## Data Model (from `@kateri/shared`)
+
+- UserProfile: `id`, `email`, `firstName`, `lastName`, `role` (legacy), `isActive`, timestamps.
+- Camper: `id`, `firstName`, `lastName`, `dateOfBirth`, `parentId`, `gender` (`male|female`), `gradeCompleted` (2–8), `emergencyContacts[]`, `medicalInfo{}`, `registrationStatus`, timestamps.
+- Session: `id`, `year`, `name`, `gender` (`boys|girls`), `startDate`, `endDate`, `capacity`, `price`, `waitlistOpen`, timestamps.
+- Registration: `id`, `year`, `sessionId`, `parentId`, `camperId`, `status` (`incomplete|pendingPayment|confirmed|waitlisted|cancelled`), `formCompletion{}`, `addOns{messagePackets}`, `depositPaid`, `totalDue`, timestamps.
+- MedicalRecord/MedicationLog, Payment, Photo (see shared schemas for details and evolution).
+
+## Firestore Structure
+
+- Users: `users/{uid}` profile with `roles` array.
+- Campers: `campers/{camperId}` with `parentId` and metadata.
+- Guardianships: `guardianships/{relationshipId}` (legacy name; slated for parent-centric cleanup) – used by rules for parent-of checks (TBD).
+- Sessions: `sessions/{year}/{boys|girls}/{sessionId}`.
+- Registrations: `sessions/{year}/{boys|girls}/{sessionId}/registrations/{registrationId}`.
+- Medical: `medical_records/{recordId}`, `medication_logs/{logId}`.
+- Payments: `payments/{paymentId}`.
+- Photos: `photos/{photoId}`.
+
+## Security Rules (high level)
+
+- Parents: can read/update own user doc; create campers (if `createdBy == uid`); read/update/delete own campers; create/read their registrations under session path.
+- Staff (hired): read all campers, sessions, reports; write restricted.
+- Medics: read/write medical records/logs; parents can read medical for their campers.
+- Admin: full read/write and config.
+- Sessions: public read for listing; writes admin only.
+- Open item: Replace `guardianships` with parent-centric relationship checks; ensure rules align with `parentId` on campers and registrations.
+
+## Cloud Functions
+
+- Auth Profile Create (Gen2)
+  - On user creation, create `users/{uid}` profile with roles. Admin whitelist supported.
+- Registration (Gen2 Callable)
+  - `createRegistration`: Validates grade (2–8), resolves `gender` path (`boys|girls`), ensures camper exists/creates one, and writes registration to `sessions/{year}/{gender}/{sessionId}/registrations`.
+  - Future: payment hooks, waitlist logic, capacity checks.
+
+## Local Development
+
+- Emulators: Ports aligned in `firebase.json` (auth: 9110, firestore: 8088, storage: 9198, functions: 5001, ui: 4050, hub: 9151).
+- Vite proxy + emulator wiring in `packages/web/src/firebase.ts` to avoid CORS; supports full URL overrides for remote dev.
+- Helper scripts:
+  - `scripts/kill-ports.sh` – free emulator/dev ports.
+  - `scripts/seed-emulator.sh` – create a default `parent,staff` user and `users/{uid}` doc.
+  - `scripts/seed-sessions.sh [year]` – seed example sessions under `sessions/{year}/{boys|girls}/*`.
+- Devcontainer `setup.sh` ensures Corepack/Yarn, installs deps, and prints quick-start commands.
+
+## Non-Functional Requirements
+
+- Strict TypeScript, ESLint, and Zod validation on boundaries.
+- Unit tests in functions where feasible (Vitest/Jest currently mixed by codebase).
+- Observability: Optional Sentry DSN for functions and frontend (TBD rollout).
+
+## Open Questions / TBDs
+
+1. Guardianship model: Replace `guardianships/*` checks with direct `parentId` or a new parent-link collection? Migrate rules accordingly.
+2. Session seeding: Admin UX and/or scripts to create sessions per-year; canonical IDs and naming.
+3. Capacity and waitlist logic: When to flip to waitlist; policies for auto-promotion.
+4. Payments: Adyen integration flow, deposit handling, refunds, and reconciliation.
+5. Staff sub-roles: Clarify taxonomy (`staff`, `staff_hired`, cabin leaders, etc.) and permissions matrix.
+6. Medical flows: HIPAA-like safeguards, audit trails, emergency access, and redaction policies.
+7. Photo permissions: Explicit consent model for albums/tags; parent access controls.
+8. Analytics/Reporting: Scope and initial dashboards; export formats.
+9. Identity workflows: Future use of blocking functions (GCIP) for advanced registration checks.
+10. Gen1 vs Gen2 functions: Consolidate to Gen2 or maintain split; update emulators/start scripts accordingly.
+11. Multi-environment config: Secrets management, production/staging projects, and deployment gates.
+12. UI polish: Stepper components, error states, skeletons; accessibility and mobile layouts.
+
+## Next Steps
+
+- Parent
+  - Build registration stepper UI backed by `createRegistration`.
+  - Camper CRUD and profile forms with validation.
+- Staff
+  - Read-only rosters per session; design cabin assignment.
+- Admin
+  - Session CRUD UI and seed helpers; role management page.
+- Platform
+  - Tighten security rules with parent-centric checks; add unit/integration tests.
+  - Basic reporting queries and admin exports.
+
+---
+
+Document: `docs/blueprint.md` (living). Update as decisions land and features ship.

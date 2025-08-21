@@ -4,6 +4,10 @@ import { useAuth } from '../auth'
 export default function Topbar() {
   const { roles, currentRole, setCurrentRole, signOut, user } = useAuth()
   const navigate = useNavigate()
+  const bypassVal = (import.meta as unknown as { env: Record<string, string | undefined> }).env
+    .VITE_BYPASS_ADMIN_ROLE
+  const adminBypass = bypassVal === 'true' || bypassVal === '1'
+  const canSeeAdmin = adminBypass || (roles && roles.includes('admin'))
 
   const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const r = e.target.value || null
@@ -25,8 +29,18 @@ export default function Topbar() {
           <Link to="/campers">Campers</Link>
           <Link to="/medical">Medical</Link>
           <Link to="/photos">Photos</Link>
+          {canSeeAdmin && (
+            <Link to="/admin" style={{ fontWeight: 600 }}>
+              Admin
+            </Link>
+          )}
         </nav>
         <div className="top-actions">
+          {canSeeAdmin && (
+            <Link to="/admin" className="btn small" style={{ marginRight: 8 }}>
+              Admin Portal
+            </Link>
+          )}
           {roles && roles.length > 0 && (
             <select
               aria-label="Role switcher"

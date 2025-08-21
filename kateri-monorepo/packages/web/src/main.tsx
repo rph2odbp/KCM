@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
+import { CONFIG_OK } from './firebase'
 import ErrorBoundary from './error-boundary'
 import './index.css'
 
@@ -48,6 +49,11 @@ if (enableSentry && sentryDsn) {
 
 const Root = () => (
   <>
+    {!CONFIG_OK && (
+      <div style={{ padding: 16, background: '#fff8e1', borderBottom: '1px solid #f0d58a' }}>
+        Missing Firebase config. Check your .env/.env.local in packages/web.
+      </div>
+    )}
     {enableSentry && sentryDsn && SentryBoundary ? (
       <SentryBoundary
         fallback={
@@ -66,6 +72,7 @@ const Root = () => (
   </>
 )
 
+console.info('[KCM] Booting React app…')
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <Root />

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { auth, db } from './firebase'
+import { auth, db, IS_EMULATOR } from './firebase'
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -11,7 +11,7 @@ import {
   sendPasswordResetEmail,
   type User as FirebaseUser,
 } from 'firebase/auth'
-import { doc, onSnapshot } from 'firebase/firestore'
+import { doc, onSnapshot, setDoc } from 'firebase/firestore'
 
 type AuthContextType = {
   user: FirebaseUser | null
@@ -37,8 +37,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     typeof window !== 'undefined' ? window.localStorage.getItem('kcm_current_role') : null,
   )
 
-  // Subscribe once to auth state
+  const disableAuthFlag =
+    (import.meta as unknown as { env: Record<string, string | undefined> }).env
+      .VITE_DISABLE_AUTH === 'true'
+
+  // Subscribe once to auth state unless auth is disabled (dev bypass)
   useEffect(() => {
+    if (disableAuthFlag) {
+      // Simulate an authenticated user object
+      const mockUser = {
+        uid: 'dev-user',
+        email: 'dev@example.com',
+        displayName: 'Dev User',
+      } as unknown as FirebaseUser
+      setUser(mockUser)
+      setRoles(['parent', 'staff', 'admin'])
+      if (!currentRole) setCurrentRoleState('admin')
+      setLoading(false)
+      return
+    }
     const unsub = onAuthStateChanged(auth, u => {
       setUser(u)
       setLoading(false)
@@ -53,18 +70,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     })
     return unsub
-  }, [])
+  }, [disableAuthFlag, currentRole])
 
   // Separate effect: when user exists subscribe to their profile doc for roles
   useEffect(() => {
-    if (!user) return
+    if (!user || disableAuthFlag) return
     const ref = doc(db, 'users', user.uid)
+    let wroteDefault = false
     const unsub = onSnapshot(
       ref,
-      snap => {
+      async snap => {
+        if (!snap.exists() && !wroteDefault) {
+          // First sign-in (any provider): bootstrap a minimal profile with default roles
+          wroteDefault = true
+          try {
+            await setDoc(ref, {
+              email: user.email || '',
+              displayName: user.displayName || '',
+              roles: ['parent', 'staff'],
+            })
+            console.info('[KCM] Created default user profile with roles [parent, staff]')
+            return
+          } catch (e) {
+            console.warn('Failed to create default user profile', e)
+          }
+        }
         const data = snap.data() || {}
         const r = Array.isArray(data.roles) ? data.roles : []
         setRoles(r)
+        try {
+          // Lightweight visibility to help debug role state during dev
+          // eslint-disable-next-line no-console
+          console.info('[KCM] Roles updated for user', user.uid, r)
+        } catch {
+          /* ignore */
+        }
         // set default current role if not yet selected
         if (!currentRole && r.length) {
           setCurrentRoleState(r[0])
@@ -81,10 +121,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     )
     return unsub
-  }, [user, currentRole])
+  }, [user, currentRole, disableAuthFlag])
 
   const signIn = async (email: string, password: string) => {
-    return signInWithEmailAndPassword(auth, email, password)
+    try {
+      return await signInWithEmailAndPassword(auth, email, password)
+    } catch (err: unknown) {
+      // In the Auth emulator it's common to lose users between restarts; auto-create for convenience.
+      const code: string | undefined = (err as { code?: string } | null | undefined)?.code
+      const canAutoCreate =
+        IS_EMULATOR &&
+        code &&
+        (code.includes('user-not-found') || code.includes('invalid-credential'))
+      if (canAutoCreate) {
+        console.info('[KCM] Auto-provisioning user in emulator after sign-in failure:', code)
+        const cred = await firebaseCreateUser(auth, email, password)
+        try {
+          const ref = doc(db, 'users', cred.user.uid)
+          await setDoc(ref, { email, displayName: '', roles: ['parent', 'staff'] }, { merge: true })
+        } catch (e) {
+          console.warn('[KCM] Failed to create profile during auto-provision', e)
+        }
+        return cred
+      }
+      throw err
+    }
   }
 
   const register = async (email: string, password: string) => {

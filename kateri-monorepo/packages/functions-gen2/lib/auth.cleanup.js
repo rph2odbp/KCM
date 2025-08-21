@@ -37,9 +37,8 @@ exports.cleanupDeletedUsersDaily = void 0;
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const firebase_functions_1 = require("firebase-functions");
 const admin = __importStar(require("firebase-admin"));
-const firestore_1 = require("firebase-admin/firestore");
+const admin_1 = require("./admin");
 const sentry_1 = require("./sentry");
-const db = (0, firestore_1.getFirestore)('kcm-db');
 exports.cleanupDeletedUsersDaily = (0, scheduler_1.onSchedule)({
     region: 'us-central1',
     schedule: '30 3 * * *',
@@ -47,38 +46,34 @@ exports.cleanupDeletedUsersDaily = (0, scheduler_1.onSchedule)({
     timeoutSeconds: 540,
     secrets: [sentry_1.SENTRY_DSN_SECRET],
 }, async () => {
-    try {
-        firebase_functions_1.logger.info('Starting daily cleanup of deleted users');
-        const auth = admin.auth();
-        const uids = new Set();
-        // List all auth users (paged)
-        let nextPageToken;
-        do {
-            const res = await auth.listUsers(1000, nextPageToken);
-            for (const user of res.users)
-                uids.add(user.uid);
-            nextPageToken = res.pageToken || undefined;
-        } while (nextPageToken);
-        // Fetch all Firestore user docs
-        const snap = await db.collection('users').select().get();
-        let deleted = 0;
-        let skipped = 0;
-        for (const doc of snap.docs) {
-            if (!uids.has(doc.id)) {
-                const data = doc.data();
-                if (data?.role === 'admin') {
-                    skipped++;
-                    firebase_functions_1.logger.info('Skipping deletion of admin user doc', { uid: doc.id });
-                    continue;
-                }
-                await doc.ref.delete();
-                deleted++;
+    firebase_functions_1.logger.info('Starting daily cleanup of deleted users');
+    const auth = admin.auth();
+    const uids = new Set();
+    // List all auth users (paged)
+    let nextPageToken;
+    do {
+        const res = await auth.listUsers(1000, nextPageToken);
+        for (const user of res.users)
+            uids.add(user.uid);
+        nextPageToken = res.pageToken || undefined;
+    } while (nextPageToken);
+    // Fetch all Firestore user docs
+    const snap = await admin_1.db.collection('users').select().get();
+    let deleted = 0;
+    let skipped = 0;
+    for (const doc of snap.docs) {
+        if (!uids.has(doc.id)) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const data = doc.data();
+            if (data?.role === 'admin') {
+                skipped++;
+                firebase_functions_1.logger.info('Skipping deletion of admin user doc', { uid: doc.id });
+                continue;
             }
+            await doc.ref.delete();
+            deleted++;
         }
-        firebase_functions_1.logger.info('User cleanup complete', { checked: snap.size, deleted, skipped });
     }
-    catch (err) {
-        throw err;
-    }
+    firebase_functions_1.logger.info('User cleanup complete', { checked: snap.size, deleted, skipped });
 });
 //# sourceMappingURL=auth.cleanup.js.map

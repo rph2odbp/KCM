@@ -30,3 +30,14 @@ Authentication (modeled after Fireship example):
 
 - Sign in with the seeded user, then pick a role from the top bar.
 - If a 400 appears for `identitytoolkit.googleapis.com`, check the dev server console for proxy logs that show the exact emulator error body.
+
+Admin roles:
+
+- Roles live in Firestore at `users/{uid}.roles`.
+- New accounts default to `parent` and `staff`.
+- Some emails auto-get `admin` via `functions-gen2/src/roles.util.ts`.
+- In emulators, you can grant admin in three ways:
+  - By email: `yarn grant:admin:email you@example.com`
+  - By uid: `yarn grant:admin <uid>`
+  - Create user and force admin: `yarn add:admin:user you@example.com yourpass`
+- The auth onCreate trigger preserves existing roles (arrayUnion), so adding admin won’t be overwritten on future logins.

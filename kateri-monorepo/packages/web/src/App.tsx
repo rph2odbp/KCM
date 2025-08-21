@@ -18,6 +18,22 @@ function App() {
       <AuthProvider>
         <Router>
           <div className="App">
+            {import.meta.env.VITE_APP_ENV === 'staging' && (
+              <div
+                style={{
+                  position: 'fixed',
+                  top: 0,
+                  right: 0,
+                  background: '#d97706',
+                  color: '#fff',
+                  padding: '4px 8px',
+                  fontSize: 12,
+                  zIndex: 9999,
+                }}
+              >
+                STAGING
+              </div>
+            )}
             <Topbar />
 
             <main className="container">
@@ -55,13 +71,23 @@ function App() {
                 />
                 <Route
                   path="/admin/*"
-                  element={
-                    <Protected>
-                      <RoleProtected role="admin">
+                  element={(() => {
+                    const bypassVal = (
+                      import.meta as unknown as { env: Record<string, string | undefined> }
+                    ).env.VITE_BYPASS_ADMIN_ROLE
+                    const bypass = bypassVal === 'true' || bypassVal === '1'
+                    return bypass ? (
+                      <Protected>
                         <AdminLanding />
-                      </RoleProtected>
-                    </Protected>
-                  }
+                      </Protected>
+                    ) : (
+                      <Protected>
+                        <RoleProtected role="admin">
+                          <AdminLanding />
+                        </RoleProtected>
+                      </Protected>
+                    )
+                  })()}
                 />
                 <Route
                   path="/campers"
@@ -126,7 +152,12 @@ function Home() {
         <li>AI-powered features</li>
       </ul>
       <p>
-        <strong>Status:</strong> Development environment - Firebase emulators ready
+        <strong>Status:</strong>{' '}
+        {import.meta.env.VITE_APP_ENV === 'staging'
+          ? 'Staging environment'
+          : import.meta.env.VITE_USE_EMULATORS === 'true'
+            ? 'Development (emulators)'
+            : 'Production'}
       </p>
     </section>
   )
@@ -171,6 +202,13 @@ function Protected({ children }: { children: JSX.Element }) {
 function RoleProtected({ role, children }: { role: string; children: JSX.Element }) {
   const { currentRole, loading } = useAuth()
   if (loading) return <div>Loading...</div>
+  // Dev bypass: allow viewing admin routes without the admin role when enabled via env
+  const bypassVal = (import.meta as unknown as { env: Record<string, string | undefined> }).env
+    .VITE_BYPASS_ADMIN_ROLE
+  const bypassAdmin = bypassVal === 'true' || bypassVal === '1'
+  if (role === 'admin' && bypassAdmin) {
+    return children
+  }
   // If no role selected or role doesn't match, direct user to role picker
   if (!currentRole) return <Navigate to="/roles" replace />
   if (currentRole !== role) return <Navigate to="/roles" replace />

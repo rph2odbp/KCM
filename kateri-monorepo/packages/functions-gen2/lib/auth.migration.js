@@ -6,9 +6,10 @@ exports.createUserProfileV2 = void 0;
 const identity_1 = require("firebase-functions/v2/identity");
 const firebase_functions_1 = require("firebase-functions");
 const firestore_1 = require("firebase-admin/firestore");
-const db = (0, firestore_1.getFirestore)('kcm-db');
+const admin_1 = require("./admin");
 exports.createUserProfileV2 = (0, identity_1.beforeUserCreated)({ region: 'us-central1' }, async (event) => {
     const u = event.data;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ctx = event.context;
     const providerIds = (u.providerData || []).map(p => p.providerId);
     const profile = {
@@ -22,7 +23,7 @@ exports.createUserProfileV2 = (0, identity_1.beforeUserCreated)({ region: 'us-ce
         createdAt: firestore_1.FieldValue.serverTimestamp(),
         updatedAt: firestore_1.FieldValue.serverTimestamp(),
     };
-    await db.collection('users').doc(u.uid).set(profile);
+    await admin_1.db.collection('users').doc(u.uid).set(profile);
     firebase_functions_1.logger.info('User profile created (blocking)', {
         uid: u.uid,
         email: u.email,

@@ -16,7 +16,8 @@ export const CamperIdSchema = z.string().uuid()
 // User Management
 // ============================================================================
 
-export const UserRoleSchema = z.enum(['guardian', 'staff', 'admin', 'medic'])
+// Roles for authentication/authorization
+export const UserRoleSchema = z.enum(['parent', 'staff', 'admin', 'medic'])
 
 export const UserProfileSchema = z
   .object({
@@ -24,7 +25,7 @@ export const UserProfileSchema = z
     email: z.string().email(),
     firstName: z.string().min(1),
     lastName: z.string().min(1),
-    role: UserRoleSchema,
+    role: UserRoleSchema, // legacy single-role; app uses roles array in Firestore
     phoneNumber: z.string().optional(),
     isActive: z.boolean().default(true),
   })
@@ -40,7 +41,9 @@ export const CamperSchema = z
     firstName: z.string().min(1),
     lastName: z.string().min(1),
     dateOfBirth: z.date(),
-    guardianId: UserIdSchema,
+    parentId: UserIdSchema,
+    gender: z.enum(['male', 'female']),
+    gradeCompleted: z.number().int().min(2).max(8), // must be 2–8 before camp
     emergencyContacts: z.array(
       z.object({
         name: z.string().min(1),
@@ -56,6 +59,58 @@ export const CamperSchema = z
       conditions: z.array(z.string()).default([]),
       additionalNotes: z.string().optional(),
     }),
+  })
+  .merge(TimestampSchema)
+
+// ============================================================================
+// Sessions and Registrations (year → session → registrations)
+// ============================================================================
+
+export const SessionGenderSchema = z.enum(['boys', 'girls'])
+
+export const SessionSchema = z
+  .object({
+    id: z.string(),
+    year: z.number().int().min(2000),
+    name: z.string().min(1),
+    gender: SessionGenderSchema,
+    startDate: z.date(),
+    endDate: z.date(),
+    capacity: z.number().int().min(1),
+    price: z.number().nonnegative(),
+    waitlistOpen: z.boolean().default(true),
+  })
+  .merge(TimestampSchema)
+
+export const RegistrationStatusSchema = z.enum([
+  'incomplete',
+  'pendingPayment',
+  'confirmed',
+  'waitlisted',
+  'cancelled',
+])
+
+export const RegistrationSchema = z
+  .object({
+    id: z.string(),
+    year: z.number().int().min(2000),
+    sessionId: z.string(),
+    parentId: UserIdSchema,
+    camperId: CamperIdSchema,
+    status: RegistrationStatusSchema,
+    formCompletion: z.object({
+      parent: z.boolean().default(false),
+      camper: z.boolean().default(false),
+      health: z.boolean().default(false),
+      consents: z.boolean().default(false),
+      payment: z.boolean().default(false),
+    }),
+    addOns: z.object({ messagePackets: z.number().int().min(0).default(0) }).default({
+      messagePackets: 0,
+    }),
+    cabinId: z.string().optional(),
+    depositPaid: z.boolean().default(false),
+    totalDue: z.number().nonnegative().default(0),
   })
   .merge(TimestampSchema)
 
@@ -148,6 +203,8 @@ export const PhotoSchema = z
 export type UserRole = z.infer<typeof UserRoleSchema>
 export type UserProfile = z.infer<typeof UserProfileSchema>
 export type Camper = z.infer<typeof CamperSchema>
+export type Session = z.infer<typeof SessionSchema>
+export type Registration = z.infer<typeof RegistrationSchema>
 export type MedicationLog = z.infer<typeof MedicationLogSchema>
 export type MedicalRecord = z.infer<typeof MedicalRecordSchema>
 export type Payment = z.infer<typeof PaymentSchema>

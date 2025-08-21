@@ -6,14 +6,14 @@ import {
   type AuthUserRecord,
 } from 'firebase-functions/v2/identity'
 import { logger } from 'firebase-functions'
-import { getFirestore, FieldValue } from 'firebase-admin/firestore'
-
-const db = getFirestore('kcm-db')
+import { FieldValue } from 'firebase-admin/firestore'
+import { db } from './admin'
 
 export const createUserProfileV2 = beforeUserCreated(
   { region: 'us-central1' },
   async (event: AuthBlockingEvent) => {
     const u = event.data as AuthUserRecord
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ctx = (event as any).context as {
       locale?: string
       ipAddress?: string
@@ -42,4 +42,5 @@ export const createUserProfileV2 = beforeUserCreated(
       userAgent: ctx?.userAgent,
     })
   },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ) as any

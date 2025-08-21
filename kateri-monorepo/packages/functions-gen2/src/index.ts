@@ -2,16 +2,15 @@ import { logger } from 'firebase-functions'
 import { onRequest } from 'firebase-functions/v2/https'
 import { onSchedule } from 'firebase-functions/v2/scheduler'
 import { onDocumentUpdated } from 'firebase-functions/v2/firestore'
-import * as admin from 'firebase-admin'
-import { getFirestore } from 'firebase-admin/firestore'
+import './admin'
 import cors from 'cors'
 import { SENTRY_DSN_SECRET, ensureSentryInitialized, captureException } from './sentry'
+export { createRegistration } from './register'
 
 // Initialize Sentry lazily (env or secret)
 ensureSentryInitialized()
 
-admin.initializeApp()
-getFirestore('kcm-db')
+// admin + db are initialized in ./admin (supports emulator hot reload)
 
 const corsHandler = cors({ origin: true })
 
@@ -19,13 +18,16 @@ export const helloWorld = onRequest(
   { region: 'us-central1', invoker: 'private', secrets: [SENTRY_DSN_SECRET] },
   async (request, response) => {
     try {
-      await new Promise<void>((resolve, reject) =>
-        corsHandler(request as any, response as any, () => resolve()),
-      )
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      await new Promise<void>(resolve => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        corsHandler(request as any, response as any, () => resolve())
+      })
       logger.info('Hello world function called', { structuredData: true })
       response.json({ message: 'Hello from KCM Firebase Functions (Node 22)!' })
     } catch (err) {
       captureException(err, { function: 'helloWorld' })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       logger.error('helloWorld failed', { message: (err as any)?.message })
       response.status(500).json({ error: 'Internal error' })
     }
@@ -75,3 +77,6 @@ export { cleanupDeletedUsersDaily } from './auth.cleanup'
 
 // Firestore export backup (daily)
 export { backupFirestoreDaily } from './backup'
+
+// Auth user profile bootstrap on create
+export { createUserProfile } from './auth.profile.js'

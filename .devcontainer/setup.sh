@@ -1,5 +1,8 @@
 #!/bin/bash
-set -e
+set -Eeuo pipefail
+
+trap 'echo "❌ Setup failed on line $LINENO" >&2' ERR
+
 echo "🚀 Setting up KCM development environment..."
 
 # Ensure monorepo exists
@@ -18,8 +21,15 @@ else
   echo "✅ firebase.json exists."
 fi
 
-echo "📦 Installing global packages..."
-npm install -g firebase-tools@latest yarn@latest
+echo "📦 Preparing toolchain (Corepack/Yarn) ..."
+# Prefer Corepack-managed Yarn from packageManager fields
+if command -v corepack >/dev/null 2>&1; then
+  corepack enable || true
+else
+  echo "⚠️ Corepack not found; using system Yarn if available."
+fi
+node -v || echo "⚠️ Node not found in PATH"
+yarn -v || echo "ℹ️ Yarn will be provided by Corepack during install"
 
 echo "🌐 Installing Chrome for testing..."
 npx playwright install chromium --with-deps
@@ -57,8 +67,11 @@ echo ""
 echo "🎉 Development environment setup complete!"
 echo "Quick start commands (from repo root):"
 echo "  corepack enable || true"
-echo "  yarn install"
-echo "  yarn workspace @kateri/web dev       # Start React dev server"
-echo "  yarn workspace @kateri/functions serve  # Start functions emulator (local)"
-echo "  yarn emulators                       # Start Firebase emulators (if configured)"
+echo "  yarn -C kateri-monorepo install"
+echo "  yarn emulators                        # Start Firebase emulators (with UI)"
+echo "  yarn web:dev                          # Start React dev server"
+echo ""
+echo "Helpers:"
+echo "  yarn -C kateri-monorepo emulators:kill-ports   # Free emulator ports"
+echo "  yarn -C kateri-monorepo emulators:restart      # Kill ports + start functions emulator"
 echo ""

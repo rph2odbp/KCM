@@ -29,16 +29,25 @@ if (!admin.apps.length) {
   try {
     if (saJson) {
       const parsed = JSON.parse(saJson);
-      options = { credential: admin.credential.cert(parsed), projectId: PROJECT_ID };
-      console.log('[seed] Using inline service account JSON');
+      options = {
+        credential: admin.credential.cert(parsed),
+        projectId: PROJECT_ID,
+      };
+      console.log("[seed] Using inline service account JSON");
     } else if (saPath) {
       // eslint-disable-next-line import/no-dynamic-require, global-require
-      const loaded = JSON.parse(require('fs').readFileSync(saPath, 'utf8'));
-      options = { credential: admin.credential.cert(loaded), projectId: PROJECT_ID };
-      console.log('[seed] Using service account from path');
+      const loaded = JSON.parse(require("fs").readFileSync(saPath, "utf8"));
+      options = {
+        credential: admin.credential.cert(loaded),
+        projectId: PROJECT_ID,
+      };
+      console.log("[seed] Using service account from path");
     }
   } catch (e) {
-    console.warn('[seed] Failed to parse provided service account credentials, falling back to ADC:', e.message);
+    console.warn(
+      "[seed] Failed to parse provided service account credentials, falling back to ADC:",
+      e.message
+    );
   }
   admin.initializeApp(options);
 }
