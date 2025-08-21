@@ -309,6 +309,28 @@ node scripts/seed-production.mjs <adminEmail> 2026
 
 Requires the target admin to have already authenticated once so an Auth user exists. The script will ensure `roles` contains `admin` and create a placeholder session skeleton if a year is supplied.
 
+### Keyless Deploys (Workload Identity Federation)
+
+Production deploy workflows use GitHub OIDC + Google Workload Identity Federation—no static JSON keys or firebase login:ci tokens.
+
+Setup (one-time in GCP):
+1. gcloud iam workload-identity-pools create kcm-pool --project kcm-firebase-b7d6a --location=global --display-name="GitHub OIDC"
+2. gcloud iam workload-identity-pools providers create-oidc github --project kcm-firebase-b7d6a --location=global --workload-identity-pool=kcm-pool --display-name="GitHub" --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.ref=assertion.ref" --issuer-uri="https://token.actions.githubusercontent.com"
+3. Create service account: deploy-bot@kcm-firebase-b7d6a.iam.gserviceaccount.com
+4. Grant minimal roles to the SA (adjust as needed):
+  - roles/firebase.developAdmin (or narrower: roles/cloudfunctions.developer + roles/run.admin + roles/iam.serviceAccountUser + roles/firebaserules.admin + roles/datastore.indexAdmin)
+  - roles/iam.serviceAccountTokenCreator (if chaining impersonation)
+5. Allow GitHub repo to impersonate:
+  gcloud iam service-accounts add-iam-policy-binding deploy-bot@kcm-firebase-b7d6a.iam.gserviceaccount.com \
+    --project kcm-firebase-b7d6a \
+    --role roles/iam.workloadIdentityUser \
+    --member "principalSet://iam.googleapis.com/projects/$(gcloud projects describe kcm-firebase-b7d6a --format=value(projectNumber))/locations/global/workloadIdentityPools/kcm-pool/attribute.repository/rph2odbp/KCM"
+6. Save values as GitHub repo secrets:
+  - GCP_WORKLOAD_IDENTITY_PROVIDER: projects/<PROJECT_NUMBER>/locations/global/workloadIdentityPools/kcm-pool/providers/github
+  - GCP_SERVICE_ACCOUNT_EMAIL: deploy-bot@kcm-firebase-b7d6a.iam.gserviceaccount.com
+
+Workflows (`deploy-*.yml`) now call google-github-actions/auth with id-token permissions and deploy using short‑lived federated credentials. No firebase token or JSON key required.
+
 ## 🎯 Feature Roadmap
 
 ### Phase 1: Core Infrastructure ✅
