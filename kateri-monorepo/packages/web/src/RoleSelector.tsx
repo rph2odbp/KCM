@@ -11,7 +11,8 @@ export default function RoleSelector() {
       <section>
         <h2>No roles assigned</h2>
         <p>
-          Your account doesn't have any roles yet. Contact support if you believe this is an error.
+          Your account doesn&apos;t have any roles yet. Contact support if you believe this is an
+          error.
         </p>
       </section>
     )

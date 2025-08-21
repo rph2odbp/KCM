@@ -26,8 +26,8 @@ jobs:
         run: corepack yarn install
       - name: Build functions
         run: |
-          yarn --cwd kateri-monorepo workspace @kateri/functions run build
-          yarn --cwd kateri-monorepo workspace @kateri/functions-gen2 run build
+          corepack yarn --cwd kateri-monorepo workspace @kateri/functions run build
+          corepack yarn --cwd kateri-monorepo workspace @kateri/functions-gen2 run build
       - name: Run emulators smoke
         env:
           FB_PROJECT_ID: kcm-firebase-b7d6a
