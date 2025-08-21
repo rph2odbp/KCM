@@ -1,8 +1,8 @@
 {
   "projects": {
-    "default": "kcm-firebase-b7d6a",
-    "dev": "kateri-camp-dev",
-    "staging": "kateri-camp-staging", 
-    "prod": "kateri-camp-prod"
+  "default": "kcm-firebase-b7d6a",
+  "dev": "kcm-firebase-b7d6a",
+  "staging": "kcm-firebase-b7d6a", 
+  "prod": "kcm-firebase-b7d6a"
   }
 }
