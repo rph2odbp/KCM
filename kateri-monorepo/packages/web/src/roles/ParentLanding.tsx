@@ -76,7 +76,7 @@ function ParentRegistration() {
       }
     }
     void run()
-  }, [colRef, year, currentYear])
+  }, [colRef, year, currentYear, genderKey])
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()

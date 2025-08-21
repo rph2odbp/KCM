@@ -100,7 +100,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRoles(r)
         try {
           // Lightweight visibility to help debug role state during dev
-          // eslint-disable-next-line no-console
           console.info('[KCM] Roles updated for user', user.uid, r)
         } catch {
           /* ignore */
