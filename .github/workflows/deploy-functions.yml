@@ -34,6 +34,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential python3
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -96,19 +99,15 @@ jobs:
       - name: Setup gcloud CLI
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Ensure SENTRY_DSN secret exists (and update if provided)
+      - name: Verify access to SENTRY_DSN secret
         shell: bash
         run: |
           set -euo pipefail
           gcloud config set project "$PROJECT_ID" >/dev/null
-          if ! gcloud secrets describe SENTRY_DSN --project "$PROJECT_ID" >/dev/null 2>&1; then
-            echo "Creating Secret Manager secret SENTRY_DSN (automatic replication)"
-            gcloud secrets create SENTRY_DSN --project "$PROJECT_ID" --replication-policy=automatic || true
-          fi
-          if [ -n "${SENTRY_DSN:-}" ]; then
-            printf "%s" "$SENTRY_DSN" | gcloud secrets versions add SENTRY_DSN --project "$PROJECT_ID" --data-file=- >/dev/null
-          else
-            echo "SENTRY_DSN GitHub secret is empty; skipping version add."
+          if ! gcloud secrets versions list SENTRY_DSN --project "$PROJECT_ID" --format='value(name)' >/dev/null 2>&1; then
+            echo "SENTRY_DSN secret missing or not accessible. Ensure it exists with at least one version and grant the deploy service account secretmanager.secretAccessor." >&2
+            echo "Service account: ${GCP_SERVICE_ACCOUNT_EMAIL}" >&2
+            exit 1
           fi
 
       - name: Best-effort grant Firestore access to runtime SA
@@ -145,15 +144,7 @@ jobs:
             --member "serviceAccount:${RUNTIME_SA}" \
             --role roles/secretmanager.secretAccessor || true
 
-      - name: Export Firebase access token from gcloud
-        run: |
-          set -euo pipefail
-          TOKEN="$(gcloud auth print-access-token)"
-          if [ -z "$TOKEN" ]; then
-            echo "Failed to obtain access token from gcloud." >&2
-            exit 1
-          fi
-          echo "FIREBASE_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+      # Use Application Default Credentials from WIF; no FIREBASE_TOKEN export
 
       - name: Deploy Firestore rules and indexes
         run: |
@@ -181,13 +172,11 @@ jobs:
         run: |
           yarn dlx firebase-tools@13.29.0 functions:log \
             --only createUserProfile \
-            --project "$PROJECT_ID" \
-            --limit 100 || true
+            --project "$PROJECT_ID" || true
 
       - name: Tail logs for helloWorld (Gen2)
         if: always()
         run: |
           yarn dlx firebase-tools@13.29.0 functions:log \
             --only helloWorld \
-            --project "$PROJECT_ID" \
-            --limit 50 || true
+            --project "$PROJECT_ID" || true
