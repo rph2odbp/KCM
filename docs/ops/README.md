@@ -86,6 +86,18 @@ This checks for `gcloud` and `jq` and verifies `docs/ops/monitoring-dashboard.js
   - Or revert the offending commit on `main` and allow CI/deploy to run.
   - Verify via the Monitoring dashboard and logs; if needed, reduce max instances to 0 on problematic functions to drain traffic.
 
+## Firestore Indexes Deploy (workaround)
+
+- Context: Some firebase-tools versions throw a TypeError when `firestore` is configured as an array in `firebase.json` during index deploys.
+- Workaround: Use the single-firestore config `firebase.single.json` when deploying indexes.
+- Manual deploy:
+  - yarn dlx firebase-tools@13.29.0 deploy --only firestore:indexes --project kcm-firebase-b7d6a --config firebase.single.json --non-interactive --debug
+  - If you still see errors, downgrade the CLI: use `firebase-tools@13.27.0`.
+- CI behavior:
+  - Rules are blocking.
+  - Indexes are non-blocking and use `--config firebase.single.json`.
+  - Functions deploys proceed regardless of index glitches; investigate separately.
+
 ## Secrets (Functions Gen 2)
 
 - Secret Manager is used for server-side Sentry:

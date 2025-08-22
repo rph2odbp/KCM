@@ -206,6 +206,7 @@ jobs:
           yarn dlx firebase-tools@13.29.0 deploy \
             --only firestore:indexes \
             --project "$PROJECT_ID" \
+            --config firebase.single.json \
             --non-interactive \
             --debug
 
@@ -219,6 +220,7 @@ jobs:
           echo "Listing current Firestore indexes via gcloud (may require permissions)"
           gcloud firestore indexes composite list --project "$PROJECT_ID" || true
           echo "::warning title=Firestore indexes deploy failed::Functions deploy will continue; investigate the logs above and try the manual command from the job summary."
+          echo "If you saw a TypeError reading 'map', it is a known firebase-tools bug with multiple firestore entries; using --config firebase.single.json works around it."
 
       - name: Deploy Functions (with debug)
         run: |

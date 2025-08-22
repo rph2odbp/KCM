@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { db, projectId, databaseId, auth, IS_EMULATOR } from '../../firebase'
-import { collection, doc, getDocs, query, setDoc, updateDoc } from 'firebase/firestore'
+import { collection, doc, getDocs, query, setDoc, updateDoc, deleteDoc } from 'firebase/firestore'
 
 type Gender = 'boys' | 'girls'
 
@@ -294,7 +294,29 @@ function NewOrEditSession({
 
   const save = async () => {
     if (!id || !name || !start || !end) {
-      setMsg('Please fill id, name, dates')
+      setMsg('Please fill id, name, start and end dates')
+      return
+    }
+    // Basic validation: id shape and dates
+    if (!/^([a-z0-9-]+)$/.test(id)) {
+      setMsg('ID must be lowercase letters, numbers, or hyphens (e.g., boys-w1)')
+      return
+    }
+    const sd = new Date(start)
+    const ed = new Date(end)
+    if (
+      !(sd instanceof Date && !isNaN(sd.valueOf())) ||
+      !(ed instanceof Date && !isNaN(ed.valueOf()))
+    ) {
+      setMsg('Invalid dates')
+      return
+    }
+    if (ed < sd) {
+      setMsg('End date must be after start date')
+      return
+    }
+    if (capacity <= 0) {
+      setMsg('Capacity must be a positive number')
       return
     }
     setSaving(true)
@@ -455,10 +477,33 @@ function InlineEdit({
   const [price, setPrice] = useState(session.price ?? 0)
   const [waitlistOpen, setWaitlistOpen] = useState(!!session.waitlistOpen)
   const [saving, setSaving] = useState(false)
+  const [msg, setMsg] = useState('')
 
   const save = async () => {
     setSaving(true)
     try {
+      setMsg('')
+      if (!name) {
+        setMsg('Name is required')
+        return
+      }
+      const sd = new Date(start)
+      const ed = new Date(end)
+      if (
+        !(sd instanceof Date && !isNaN(sd.valueOf())) ||
+        !(ed instanceof Date && !isNaN(ed.valueOf()))
+      ) {
+        setMsg('Invalid dates')
+        return
+      }
+      if (ed < sd) {
+        setMsg('End date must be after start date')
+        return
+      }
+      if (capacity <= 0) {
+        setMsg('Capacity must be positive')
+        return
+      }
       const cap = Number.isFinite(Number(capacity)) ? Number(capacity) : 0
       const pr = Number.isFinite(Number(price)) ? Number(price) : 0
       const d = doc(db, 'sessions', String(year), gender, session.id)
@@ -474,6 +519,23 @@ function InlineEdit({
       onSaved()
     } catch (e) {
       console.error('Update failed', e)
+      setMsg(`Error: ${(e as Error).message}`)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const remove = async () => {
+    if (!confirm(`Delete session ${session.id}? This cannot be undone.`)) return
+    setSaving(true)
+    try {
+      setMsg('')
+      const d = doc(db, 'sessions', String(year), gender, session.id)
+      await deleteDoc(d)
+      onSaved()
+    } catch (e) {
+      console.error('Delete failed', e)
+      setMsg(`Error: ${(e as Error).message}`)
     } finally {
       setSaving(false)
     }
@@ -507,6 +569,12 @@ function InlineEdit({
       <button onClick={save} disabled={saving}>
         Save
       </button>
+      <button onClick={remove} disabled={saving} style={{ color: '#b91c1c' }}>
+        Delete
+      </button>
+      <span aria-live="polite" style={{ marginLeft: 8 }}>
+        {msg}
+      </span>
     </div>
   )
 }

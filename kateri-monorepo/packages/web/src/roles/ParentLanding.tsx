@@ -2,12 +2,20 @@ import { httpsCallable } from 'firebase/functions'
 import { functions, db, app } from '../firebase'
 import { useEffect, useMemo, useState } from 'react'
 import { collection, getDocs, query, getFirestore } from 'firebase/firestore'
+import { Link, Routes, Route } from 'react-router-dom'
+import RegistrationStepper from './parent/RegistrationStepper'
 
 export default function ParentLanding() {
   return (
     <section>
       <h2>Parent Portal</h2>
       <p>Welcome to the parent portal. Register your camper for a session below.</p>
+      <nav style={{ marginBottom: 12 }}>
+        <Link to="register">New Registration (Stepper)</Link>
+      </nav>
+      <Routes>
+        <Route path="register" element={<RegistrationStepper />} />
+      </Routes>
       <ParentRegistration />
     </section>
   )
