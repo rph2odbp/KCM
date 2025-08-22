@@ -37,7 +37,6 @@ async function main() {
   console.log(
     `[firestore:${DATABASE_ID}] Listing up to ${limit} documents from users collection...`
   );
-  const [docs] = await db.getAll(...[]); // noop to satisfy type; we'll query instead
   const snap = await db.collection("users").limit(limit).get();
   if (snap.empty) {
     console.log("<no-docs>");

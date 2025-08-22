@@ -29,10 +29,11 @@ service cloud.firestore {
      exists(/databases/$(database)/documents/guardianships/$(request.auth.uid + '_' + camperId));
     }
 
-    // User profiles - users can read/write their own profile
+    // User profiles - explicit create by owner to avoid any recursion on first write
     match /users/{userId} {
-      // Guard against recursive get() by only evaluating admin role for other users
-      allow read, write: if isOwner(userId) || (isAuthenticated() && userId != request.auth.uid && hasUserRole('admin'));
+      allow create: if isOwner(userId);
+      // For reads/updates/deletes, allow owner; admins can manage other users
+      allow read, update, delete: if isOwner(userId) || (isAuthenticated() && userId != request.auth.uid && hasUserRole('admin'));
     }
 
     // Camper records - restricted access based on roles
