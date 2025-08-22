@@ -26,7 +26,6 @@ jobs:
       id-token: write
     env:
       PROJECT_ID: kcm-firebase-b7d6a
-      FIREBASE_TOKEN: ""
       GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
       GCP_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
       SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
@@ -35,7 +34,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Force clear any FIREBASE_TOKEN in env
+      - name: Ensure no legacy FIREBASE_TOKEN is set
         run: |
           echo "FIREBASE_TOKEN=" >> "$GITHUB_ENV"
           if [ -n "${FIREBASE_TOKEN:-}" ]; then echo "FIREBASE_TOKEN was set; cleared"; else echo "FIREBASE_TOKEN not set"; fi
@@ -115,16 +114,7 @@ jobs:
           gcloud auth print-access-token >/dev/null
           echo "ADC usable via gcloud"
 
-      - name: Export short-lived access token for firebase-tools
-        shell: bash
-        run: |
-          set -euo pipefail
-          TOKEN=$(gcloud auth print-access-token)
-          if [ -z "$TOKEN" ]; then
-            echo "Failed to obtain access token from gcloud" >&2
-            exit 1
-          fi
-          echo "FIREBASE_ACCESS_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+      # firebase-tools will use ADC from WIF (GOOGLE_APPLICATION_CREDENTIALS) — no --token needed
 
       - name: Verify access to SENTRY_DSN secret
         shell: bash
@@ -193,13 +183,42 @@ jobs:
 
       # Use Application Default Credentials from WIF; no FIREBASE_TOKEN export
 
-      - name: Deploy Firestore rules and indexes
+      - name: Deploy Firestore rules (blocking)
         run: |
+          set -euo pipefail
+          echo "Validating firestore.indexes.json..."
+          python3 -m json.tool firestore.indexes.json >/dev/null
+          echo "Indexes file is valid JSON. Content preview:"
+          head -n 100 firestore.indexes.json || true
+          echo "Deploying Firestore RULES with --debug"
           yarn dlx firebase-tools@13.29.0 deploy \
-            --only firestore:rules,firestore:indexes \
+            --only firestore:rules \
             --project "$PROJECT_ID" \
             --non-interactive \
-            --token "$FIREBASE_ACCESS_TOKEN"
+            --debug
+
+      - name: Attempt Firestore indexes deploy (non-blocking)
+        id: deploy_indexes
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          echo "Deploying Firestore INDEXES with --debug"
+          yarn dlx firebase-tools@13.29.0 deploy \
+            --only firestore:indexes \
+            --project "$PROJECT_ID" \
+            --non-interactive \
+            --debug
+
+      - name: Firestore troubleshooting (indexes step failed)
+        if: steps.deploy_indexes.outcome == 'failure'
+        run: |
+          set -euo pipefail
+          echo "Dumping first 200 lines of firebase.json and indexes for inspection"
+          head -n 200 firebase.json || true
+          head -n 200 firestore.indexes.json || true
+          echo "Listing current Firestore indexes via gcloud (may require permissions)"
+          gcloud firestore indexes composite list --project "$PROJECT_ID" || true
+          echo "::warning title=Firestore indexes deploy failed::Functions deploy will continue; investigate the logs above and try the manual command from the job summary."
 
       - name: Deploy Functions (with debug)
         run: |
@@ -207,28 +226,24 @@ jobs:
             --only functions \
             --project "$PROJECT_ID" \
             --non-interactive \
-            --debug \
-            --token "$FIREBASE_ACCESS_TOKEN"
+            --debug
 
       - name: List deployed functions
         if: always()
         run: |
           yarn dlx firebase-tools@13.29.0 functions:list \
-            --project "$PROJECT_ID" \
-            --token "$FIREBASE_ACCESS_TOKEN" || true
+            --project "$PROJECT_ID" || true
 
       - name: Tail logs for createUserProfile
         if: always()
         run: |
           yarn dlx firebase-tools@13.29.0 functions:log \
             --only createUserProfile \
-            --project "$PROJECT_ID" \
-            --token "$FIREBASE_ACCESS_TOKEN" || true
+            --project "$PROJECT_ID" || true
 
       - name: Tail logs for helloWorld (Gen2)
         if: always()
         run: |
           yarn dlx firebase-tools@13.29.0 functions:log \
             --only helloWorld \
-            --project "$PROJECT_ID" \
-            --token "$FIREBASE_ACCESS_TOKEN" || true
+            --project "$PROJECT_ID" || true
