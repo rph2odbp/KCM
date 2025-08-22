@@ -7,4 +7,3 @@ export declare const onCamperUpdatedV2: import("firebase-functions").CloudFuncti
 }>>;
 export { cleanupDeletedUsersDaily } from './auth.cleanup';
 export { backupFirestoreDaily } from './backup';
-export { createUserProfile } from './auth.profile.js';

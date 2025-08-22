@@ -1,6 +1,15 @@
 import * as admin from 'firebase-admin'
-import { getFirestore } from 'firebase-admin/firestore'
+import { getFirestore, FieldValue } from 'firebase-admin/firestore'
+import { auth } from 'firebase-functions/v1'
+import { logger } from 'firebase-functions'
 import type { Request, Response } from 'express'
+// Local helper (avoid cross-package import)
+function defaultRolesForEmail(email: string) {
+  const lower = (email || '').toLowerCase()
+  const base = ['parent', 'staff']
+  const adminEmails = new Set<string>(['ryanhallford.br@gmail.com', 'ryanhallford.tx@gmail.com'])
+  return adminEmails.has(lower) ? [...base, 'admin'] : base
+}
 
 // Initialize Firebase Admin SDK for compatibility; no Gen 1 exports remain.
 admin.initializeApp()
@@ -31,3 +40,29 @@ export const setUserRoles = async (req: Request, res: Response) => {
     res.status(500).send({ error: String(e) })
   }
 }
+
+// Gen1 auth trigger kept on Node 18 runtime
+export const createUserProfile = auth.user().onCreate(async u => {
+  const uid = u.uid
+  const email = (u.email || '').toLowerCase()
+
+  const roles = defaultRolesForEmail(email)
+
+  const db = getFirestore()
+  await db
+    .collection('users')
+    .doc(uid)
+    .set(
+      {
+        email,
+        displayName: u.displayName || '',
+        roles: FieldValue.arrayUnion(...roles),
+        isActive: true,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    )
+
+  logger.info('User profile ensured on create (Gen1)', { uid, email, roles })
+})

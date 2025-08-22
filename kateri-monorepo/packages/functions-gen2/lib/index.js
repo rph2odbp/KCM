@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createUserProfile = exports.backupFirestoreDaily = exports.cleanupDeletedUsersDaily = exports.onCamperUpdatedV2 = exports.dailyHealthCheckV2 = exports.helloWorld = exports.createRegistration = void 0;
+exports.backupFirestoreDaily = exports.cleanupDeletedUsersDaily = exports.onCamperUpdatedV2 = exports.dailyHealthCheckV2 = exports.helloWorld = exports.createRegistration = void 0;
 const firebase_functions_1 = require("firebase-functions");
 const https_1 = require("firebase-functions/v2/https");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
@@ -74,6 +74,5 @@ Object.defineProperty(exports, "cleanupDeletedUsersDaily", { enumerable: true, g
 var backup_1 = require("./backup");
 Object.defineProperty(exports, "backupFirestoreDaily", { enumerable: true, get: function () { return backup_1.backupFirestoreDaily; } });
 // Auth user profile bootstrap on create
-var auth_profile_js_1 = require("./auth.profile.js");
-Object.defineProperty(exports, "createUserProfile", { enumerable: true, get: function () { return auth_profile_js_1.createUserProfile; } });
+// Note: Gen1-style onCreate trigger lives in @kateri/functions (Gen1 codebase)
 //# sourceMappingURL=index.js.map

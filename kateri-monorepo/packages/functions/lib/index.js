@@ -33,9 +33,18 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.setUserRoles = void 0;
+exports.createUserProfile = exports.setUserRoles = void 0;
 const admin = __importStar(require("firebase-admin"));
 const firestore_1 = require("firebase-admin/firestore");
+const v1_1 = require("firebase-functions/v1");
+const firebase_functions_1 = require("firebase-functions");
+// Local helper (avoid cross-package import)
+function defaultRolesForEmail(email) {
+    const lower = (email || '').toLowerCase();
+    const base = ['parent', 'staff'];
+    const adminEmails = new Set(['ryanhallford.br@gmail.com', 'ryanhallford.tx@gmail.com']);
+    return adminEmails.has(lower) ? [...base, 'admin'] : base;
+}
 // Initialize Firebase Admin SDK for compatibility; no Gen 1 exports remain.
 admin.initializeApp();
 (0, firestore_1.getFirestore)('kcm-db');
@@ -66,4 +75,23 @@ const setUserRoles = async (req, res) => {
     }
 };
 exports.setUserRoles = setUserRoles;
+// Gen1 auth trigger kept on Node 18 runtime
+exports.createUserProfile = v1_1.auth.user().onCreate(async (u) => {
+    const uid = u.uid;
+    const email = (u.email || '').toLowerCase();
+    const roles = defaultRolesForEmail(email);
+    const db = (0, firestore_1.getFirestore)();
+    await db
+        .collection('users')
+        .doc(uid)
+        .set({
+        email,
+        displayName: u.displayName || '',
+        roles: firestore_1.FieldValue.arrayUnion(...roles),
+        isActive: true,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    firebase_functions_1.logger.info('User profile ensured on create (Gen1)', { uid, email, roles });
+});
 //# sourceMappingURL=index.js.map

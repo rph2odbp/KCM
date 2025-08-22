@@ -79,4 +79,4 @@ export { cleanupDeletedUsersDaily } from './auth.cleanup'
 export { backupFirestoreDaily } from './backup'
 
 // Auth user profile bootstrap on create
-export { createUserProfile } from './auth.profile.js'
+// Note: Gen1-style onCreate trigger lives in @kateri/functions (Gen1 codebase)
