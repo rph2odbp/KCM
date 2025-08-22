@@ -105,16 +105,26 @@ jobs:
       - name: Setup gcloud CLI
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Sanity check auth context (ADC)
+      - name: Sanity check auth context (ADC via gcloud)
         shell: bash
         run: |
           set -euo pipefail
           gcloud config set project "$PROJECT_ID" >/dev/null
           echo "gcloud account:" $(gcloud auth list --filter=status:ACTIVE --format='value(account)')
-          echo "whoami:" $(gcloud auth list --format='value(account)' | head -n1)
-          echo "printing access token with firebase-tools (expect success via ADC)"
-          yarn dlx firebase-tools@13.29.0 auth:print-access-token >/dev/null
-          echo "ADC usable by firebase-tools"
+          # Ensure ADC works by fetching an access token
+          gcloud auth print-access-token >/dev/null
+          echo "ADC usable via gcloud"
+
+      - name: Export short-lived access token for firebase-tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          TOKEN=$(gcloud auth print-access-token)
+          if [ -z "$TOKEN" ]; then
+            echo "Failed to obtain access token from gcloud" >&2
+            exit 1
+          fi
+          echo "FIREBASE_ACCESS_TOKEN=$TOKEN" >> "$GITHUB_ENV"
 
       - name: Verify access to SENTRY_DSN secret
         shell: bash
@@ -188,7 +198,8 @@ jobs:
           yarn dlx firebase-tools@13.29.0 deploy \
             --only firestore:rules,firestore:indexes \
             --project "$PROJECT_ID" \
-            --non-interactive
+            --non-interactive \
+            --token "$FIREBASE_ACCESS_TOKEN"
 
       - name: Deploy Functions (with debug)
         run: |
@@ -196,24 +207,28 @@ jobs:
             --only functions \
             --project "$PROJECT_ID" \
             --non-interactive \
-            --debug
+            --debug \
+            --token "$FIREBASE_ACCESS_TOKEN"
 
       - name: List deployed functions
         if: always()
         run: |
           yarn dlx firebase-tools@13.29.0 functions:list \
-            --project "$PROJECT_ID" || true
+            --project "$PROJECT_ID" \
+            --token "$FIREBASE_ACCESS_TOKEN" || true
 
       - name: Tail logs for createUserProfile
         if: always()
         run: |
           yarn dlx firebase-tools@13.29.0 functions:log \
             --only createUserProfile \
-            --project "$PROJECT_ID" || true
+            --project "$PROJECT_ID" \
+            --token "$FIREBASE_ACCESS_TOKEN" || true
 
       - name: Tail logs for helloWorld (Gen2)
         if: always()
         run: |
           yarn dlx firebase-tools@13.29.0 functions:log \
             --only helloWorld \
-            --project "$PROJECT_ID" || true
+            --project "$PROJECT_ID" \
+            --token "$FIREBASE_ACCESS_TOKEN" || true
