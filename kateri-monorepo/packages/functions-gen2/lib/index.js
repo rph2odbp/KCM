@@ -15,7 +15,7 @@ var register_1 = require("./register");
 Object.defineProperty(exports, "createRegistration", { enumerable: true, get: function () { return register_1.createRegistration; } });
 // Initialize Sentry lazily (env or secret)
 (0, sentry_1.ensureSentryInitialized)();
-// admin + db are initialized in ./admin (supports emulator hot reload)
+// admin + db are initialized in ./admin
 const corsHandler = (0, cors_1.default)({ origin: true });
 exports.helloWorld = (0, https_1.onRequest)({ region: 'us-central1', invoker: 'private', secrets: [sentry_1.SENTRY_DSN_SECRET] }, async (request, response) => {
     try {
