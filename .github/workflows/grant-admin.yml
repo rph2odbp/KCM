@@ -54,7 +54,7 @@ jobs:
         env:
           YARN_ENABLE_IMMUTABLE_INSTALLS: "true"
           YARN_ENABLE_SCRIPTS: "false"
-        run: yarn install --immutable --mode=skip-builds
+  run: yarn install --immutable --mode=skip-build
 
       - name: Authenticate to Google Cloud (WIF)
         uses: google-github-actions/auth@v2
