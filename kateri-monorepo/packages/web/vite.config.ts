@@ -5,8 +5,18 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 5173,
-    host: true,
+    // Bind to all interfaces for Codespaces/remote dev and keep port fixed for stable forwarding
+    port: 3000,
+    host: '0.0.0.0',
+    strictPort: true,
+    // Configure HMR to work behind GitHub Codespaces port forwarding
+    hmr: process.env.CODESPACES
+      ? {
+          protocol: 'wss',
+          host: `${process.env.CODESPACE_NAME}-3000.${process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}`,
+          clientPort: 443,
+        }
+      : undefined,
     proxy: {
       // Firebase Auth SDK sends requests to <origin>/identitytoolkit.googleapis.com when connected to an emulator origin.
       // Proxy that path to the local Auth emulator to avoid CORS/tunnel issues.
@@ -200,5 +210,9 @@ export default defineConfig({
   define: {
     // Global constants for Firebase config
     __DEV__: process.env.NODE_ENV === 'development',
+  },
+  preview: {
+    host: '0.0.0.0',
+    port: 3000,
   },
 })
