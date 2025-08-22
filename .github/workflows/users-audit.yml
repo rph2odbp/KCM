@@ -1,0 +1,73 @@
+name: Users Audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Max users to list from each source"
+        required: false
+        type: number
+        default: 50
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PROJECT_ID: kcm-firebase-b7d6a
+      FIRESTORE_DATABASE_ID: kcm-db
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Enable Corepack and Yarn
+        run: |
+          corepack enable
+          corepack prepare yarn@4.1.0 --activate
+
+      - name: Install dependencies (root)
+        env:
+          YARN_ENABLE_SCRIPTS: "false"
+        run: yarn install --immutable --mode=skip-build
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT_EMAIL }}
+          project_id: ${{ env.PROJECT_ID }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - name: List Firebase Auth users
+        env:
+          LIMIT: ${{ inputs.limit }}
+        run: |
+          yarn node scripts/list-auth-users.mjs "$LIMIT" | tee auth-users.log
+
+      - name: List Firestore users (kcm-db)
+        env:
+          LIMIT: ${{ inputs.limit }}
+          FIRESTORE_DATABASE_ID: ${{ env.FIRESTORE_DATABASE_ID }}
+        run: |
+          yarn node scripts/list-firestore-users.mjs "$LIMIT" | tee firestore-users.log
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Auth users (first ${{ inputs.limit }}):"
+            sed -n '1,200p' auth-users.log || true
+            echo
+            echo "### Firestore users from database '${{ env.FIRESTORE_DATABASE_ID }}' (first ${{ inputs.limit }}):"
+            sed -n '1,200p' firestore-users.log || true
+          } >> $GITHUB_STEP_SUMMARY
