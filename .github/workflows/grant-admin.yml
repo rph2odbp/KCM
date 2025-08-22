@@ -32,7 +32,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "20"
 
       - name: Enable Corepack and pin Yarn
         run: |
@@ -40,10 +40,10 @@ jobs:
           corepack prepare yarn@4.1.0 --activate
           yarn --version
 
-      - name: Install monorepo dependencies
-        env:
-          YARN_ENABLE_IMMUTABLE_INSTALLS: "true"
-        run: yarn --cwd kateri-monorepo install --immutable
+      - name: Clean caches (best effort)
+        run: |
+          yarn cache clean || true
+          npm cache clean --force || true
 
       - name: Install root dependencies (for scripts)
         env:
