@@ -9,14 +9,13 @@ on:
         type: string
 
 concurrency:
-  group: grant-admin-${{ inputs.email }}
+  group: grant-admin
   cancel-in-progress: false
 
 jobs:
   grant:
     name: Grant admin role
     runs-on: ubuntu-latest
-    environment: prod
     permissions:
       contents: read
       id-token: write
@@ -54,7 +53,7 @@ jobs:
         env:
           YARN_ENABLE_IMMUTABLE_INSTALLS: "true"
           YARN_ENABLE_SCRIPTS: "false"
-  run: yarn install --immutable --mode=skip-build
+        run: yarn install --immutable --mode=skip-build
 
       - name: Authenticate to Google Cloud (WIF)
         uses: google-github-actions/auth@v2
@@ -70,8 +69,7 @@ jobs:
           GCLOUD_PROJECT: ${{ env.PROJECT_ID }}
           FIREBASE_PROJECT: ${{ env.PROJECT_ID }}
           FIRESTORE_DATABASE_ID: ${{ env.FIRESTORE_DATABASE_ID }}
-        run: |
-          yarn node scripts/grant-admin-by-email.mjs "${{ inputs.email }}"
+        run: yarn node scripts/grant-admin-by-email.mjs "${{ inputs.email }}"
 
       - name: Summary
         run: |
