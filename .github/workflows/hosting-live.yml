@@ -1,0 +1,67 @@
+name: Deploy Hosting (Live)
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "kateri-monorepo/packages/web/**"
+      - "firebase.json"
+      - ".github/workflows/hosting-live.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Build and deploy to LIVE
+    runs-on: ubuntu-latest
+    env:
+      PROJECT_ID: kcm-firebase-b7d6a
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Enable Corepack and pin Yarn
+        run: |
+          corepack enable
+          corepack prepare yarn@4.1.0 --activate
+          yarn --version
+
+      - name: Cache Yarn (Yarn 4)
+        uses: actions/cache@v4
+        with:
+          path: |
+            kateri-monorepo/.yarn/cache
+          key: ${{ runner.os }}-yarn4-${{ hashFiles('kateri-monorepo/yarn.lock') }}
+
+      - name: Install dependencies (monorepo)
+        working-directory: kateri-monorepo
+        run: yarn install --immutable
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT_EMAIL }}
+          project_id: ${{ env.PROJECT_ID }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - name: Build web app
+        working-directory: kateri-monorepo
+        run: yarn workspace @kateri/web build
+
+      - name: Deploy Hosting (live)
+        run: |
+          yarn dlx firebase-tools@13.29.0 deploy \
+            --only hosting \
+            --project "$PROJECT_ID" \
+            --non-interactive

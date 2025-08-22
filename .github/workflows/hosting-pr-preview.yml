@@ -1,0 +1,82 @@
+name: Hosting Preview (PR)
+
+on:
+  pull_request:
+    branches: ["main", "develop"]
+    paths:
+      - "kateri-monorepo/packages/web/**"
+      - "firebase.json"
+      - ".github/workflows/hosting-pr-preview.yml"
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    env:
+      PROJECT_ID: kcm-firebase-b7d6a
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Enable Corepack and pin Yarn
+        run: |
+          corepack enable
+          corepack prepare yarn@4.1.0 --activate
+          yarn --version
+
+      - name: Cache Yarn (Yarn 4)
+        uses: actions/cache@v4
+        with:
+          path: |
+            kateri-monorepo/.yarn/cache
+          key: ${{ runner.os }}-yarn4-${{ hashFiles('kateri-monorepo/yarn.lock') }}
+
+      - name: Install dependencies (monorepo)
+        working-directory: kateri-monorepo
+        run: yarn install --immutable
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT_EMAIL }}
+          project_id: ${{ env.PROJECT_ID }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - name: Build web app
+        working-directory: kateri-monorepo
+        run: yarn workspace @kateri/web build
+
+      - name: Deploy to Hosting preview channel for PR
+        id: deploy
+        env:
+          CHANNEL: pr-${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          yarn dlx firebase-tools@13.29.0 hosting:channel:deploy "$CHANNEL" \
+            --project "$PROJECT_ID" \
+            --non-interactive \
+            --json > deploy.json
+          URL=$(node -e "const o=require('./deploy.json');console.log(o.result?.[0]?.url||o.result?.url||'');")
+          echo "preview_url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Preview URL: $URL"
+
+      - name: Comment PR with Preview URL
+        if: ${{ steps.deploy.outputs.preview_url != '' }}
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: hosting-preview
+          message: |
+            Hosting preview ready: ${{ steps.deploy.outputs.preview_url }}
