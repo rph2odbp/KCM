@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 import admin from "firebase-admin";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { GoogleAuth } from "google-auth-library";
+import { Firestore, FieldValue } from "@google-cloud/firestore";
 
 // Require email as input argument
 const emailArg = (process.argv[2] || "").toLowerCase();
@@ -28,12 +29,24 @@ if (
   process.exit(1);
 }
 
-// Note: The GitHub Action should use google-github-actions/auth to set up federation and GOOGLE_APPLICATION_CREDENTIALS
+// Initialize Auth via custom credential using WIF; Firestore via @google-cloud/firestore
 if (!admin.apps.length) {
-  admin.initializeApp({ projectId: PROJECT_ID });
+  const ga = new GoogleAuth({
+    scopes: ["https://www.googleapis.com/auth/cloud-platform"],
+  });
+  const client = await ga.getClient();
+  const credential = {
+    getAccessToken: async () => {
+      const res = await client.getAccessToken();
+      const token = typeof res === "string" ? res : res?.token;
+      if (!token) throw new Error("Failed to obtain access token via ADC");
+      return { access_token: token, expires_in: 300 };
+    },
+  };
+  admin.initializeApp({ credential, projectId: PROJECT_ID });
 }
 
-const db = getFirestore(admin.app(), "kcm-db");
+const db = new Firestore({ projectId: PROJECT_ID, databaseId: "kcm-db" });
 const auth = admin.auth();
 
 async function main() {
