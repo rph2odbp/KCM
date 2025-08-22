@@ -1,0 +1,67 @@
+name: Grant Admin (by email)
+
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: "Email address of the user to grant admin to"
+        required: true
+        type: string
+
+concurrency:
+  group: grant-admin-${{ inputs.email }}
+  cancel-in-progress: false
+
+jobs:
+  grant:
+    name: Grant admin role
+    runs-on: ubuntu-latest
+    environment: prod
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PROJECT_ID: kcm-firebase-b7d6a
+      FIRESTORE_DATABASE_ID: kcm-db
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Enable Corepack and pin Yarn
+        run: |
+          corepack enable
+          corepack prepare yarn@4.1.0 --activate
+          yarn --version
+
+      - name: Install dependencies
+        env:
+          YARN_ENABLE_IMMUTABLE_INSTALLS: "true"
+        run: yarn --cwd kateri-monorepo install --immutable
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT_EMAIL }}
+          project_id: ${{ env.PROJECT_ID }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - name: Grant admin role via script (by email)
+        env:
+          GCLOUD_PROJECT: ${{ env.PROJECT_ID }}
+          FIREBASE_PROJECT: ${{ env.PROJECT_ID }}
+          FIRESTORE_DATABASE_ID: ${{ env.FIRESTORE_DATABASE_ID }}
+        run: |
+          node scripts/grant-admin-by-email.mjs "${{ inputs.email }}"
+
+      - name: Summary
+        run: |
+          echo "Granted admin to: ${{ inputs.email }}" >> $GITHUB_STEP_SUMMARY
