@@ -13,7 +13,7 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
     function hasUserRole(role) {
-      return isAuthenticated() && userDoc().roles != null && userDoc().roles.hasAny([role]);
+      return isAuthenticated() && userDoc().roles != null && (role in userDoc().roles);
     }
 
   // Dev bypass removed for single-project production deployment
@@ -31,10 +31,8 @@ service cloud.firestore {
 
     // User profiles - users can read/write their own profile
     match /users/{userId} {
-      // Users can read and update their own profile
-      allow read, write: if isOwner(userId);
-      // Admins can manage any user profile
-      allow read, write: if hasUserRole('admin');
+      // Guard against recursive get() by only evaluating admin role for other users
+      allow read, write: if isOwner(userId) || (isAuthenticated() && userId != request.auth.uid && hasUserRole('admin'));
     }
 
     // Camper records - restricted access based on roles
