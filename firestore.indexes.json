@@ -16,7 +16,7 @@
     },
     {
       "collectionGroup": "medical_records",
-      "queryScope": "COLLECTION", 
+      "queryScope": "COLLECTION",
       "fields": [
         {
           "fieldPath": "camperId",
@@ -33,7 +33,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "camperId", 
+          "fieldPath": "camperId",
           "order": "ASCENDING"
         },
         {
@@ -63,6 +63,3 @@
   ],
   "fieldOverrides": []
 }
-
-// Note: Additional composite indexes will be added as needed during development
-// Firebase will suggest indexes based on actual query patterns
