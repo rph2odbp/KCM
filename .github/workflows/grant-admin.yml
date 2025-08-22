@@ -40,10 +40,15 @@ jobs:
           corepack prepare yarn@4.1.0 --activate
           yarn --version
 
-      - name: Install dependencies
+      - name: Install monorepo dependencies
         env:
           YARN_ENABLE_IMMUTABLE_INSTALLS: "true"
         run: yarn --cwd kateri-monorepo install --immutable
+
+      - name: Install root dependencies (for scripts)
+        env:
+          YARN_ENABLE_IMMUTABLE_INSTALLS: "true"
+        run: yarn install --immutable
 
       - name: Authenticate to Google Cloud (WIF)
         uses: google-github-actions/auth@v2
@@ -60,7 +65,7 @@ jobs:
           FIREBASE_PROJECT: ${{ env.PROJECT_ID }}
           FIRESTORE_DATABASE_ID: ${{ env.FIRESTORE_DATABASE_ID }}
         run: |
-          node scripts/grant-admin-by-email.mjs "${{ inputs.email }}"
+          yarn node scripts/grant-admin-by-email.mjs "${{ inputs.email }}"
 
       - name: Summary
         run: |
