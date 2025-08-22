@@ -1,0 +1,45 @@
+name: Seed 2026 Sessions
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    env:
+      PROJECT_ID: kcm-firebase-b7d6a
+      DATABASE_ID: kcm-db
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT_EMAIL }}
+          project_id: ${{ env.PROJECT_ID }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - name: Install firebase-admin (ephemeral)
+        run: |
+          npm init -y >/dev/null 2>&1 || true
+          npm i firebase-admin@12
+
+      - name: Seed 2026 sessions into kcm-db
+        run: node scripts/seed-sessions-2026.mjs
+        env:
+          PROJECT_ID: ${{ env.PROJECT_ID }}
+          DATABASE_ID: ${{ env.DATABASE_ID }}
