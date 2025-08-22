@@ -14,7 +14,9 @@ const DATABASE_ID = process.env.FIRESTORE_DATABASE_ID || "kcm-db";
 
 async function initAdmin() {
   if (admin.apps.length) return;
-  const auth = new GoogleAuth({ scopes: ["https://www.googleapis.com/auth/cloud-platform"] });
+  const auth = new GoogleAuth({
+    scopes: ["https://www.googleapis.com/auth/cloud-platform"],
+  });
   const client = await auth.getClient();
   const credential = {
     getAccessToken: async () => {
