@@ -5,5 +5,5 @@ if (admin.apps.length === 0) {
   admin.initializeApp()
 }
 
-export const db = getFirestore('kcm-db')
+export const db = getFirestore(admin.app(), 'kcm-db')
 export { admin }
