@@ -26,6 +26,7 @@ jobs:
       id-token: write
     env:
       PROJECT_ID: kcm-firebase-b7d6a
+  FIREBASE_TOKEN: ""
       GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
       GCP_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
       SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
@@ -33,6 +34,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Force clear any FIREBASE_TOKEN in env
+        run: |
+          echo "FIREBASE_TOKEN=" >> "$GITHUB_ENV"
+          if [ -n "${FIREBASE_TOKEN:-}" ]; then echo "FIREBASE_TOKEN was set; cleared"; else echo "FIREBASE_TOKEN not set"; fi
 
       - name: Install build dependencies
         run: sudo apt-get update && sudo apt-get install -y build-essential python3
@@ -99,6 +105,17 @@ jobs:
       - name: Setup gcloud CLI
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Sanity check auth context (ADC)
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcloud config set project "$PROJECT_ID" >/dev/null
+          echo "gcloud account:" $(gcloud auth list --filter=status:ACTIVE --format='value(account)')
+          echo "whoami:" $(gcloud auth list --format='value(account)' | head -n1)
+          echo "printing access token with firebase-tools (expect success via ADC)"
+          yarn dlx firebase-tools@13.29.0 auth:print-access-token >/dev/null
+          echo "ADC usable by firebase-tools"
+
       - name: Verify access to SENTRY_DSN secret
         shell: bash
         run: |
@@ -143,6 +160,26 @@ jobs:
             --project "$PROJECT_ID" \
             --member "serviceAccount:${RUNTIME_SA}" \
             --role roles/secretmanager.secretAccessor || true
+
+      - name: Verify access to Cloud Functions sources bucket
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')
+          BUCKET="gcf-sources-${PROJECT_NUMBER}-us-central1"
+          echo "Checking access to gs://${BUCKET}"
+          if ! gsutil ls -b "gs://${BUCKET}" >/dev/null 2>&1; then
+            echo "Bucket gs://${BUCKET} not found yet (will be created automatically on first Gen2 build)." || true
+          fi
+          if ! gsutil ls "gs://${BUCKET}" >/dev/null 2>&1; then
+            echo "Attempting to grant storage.objectViewer on bucket to ${GCP_SERVICE_ACCOUNT_EMAIL} (best effort)"
+            gsutil iam ch "serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL}:objectViewer" "gs://${BUCKET}" || true
+          fi
+          if ! gsutil ls "gs://${BUCKET}" >/dev/null 2>&1; then
+            echo "Deploy service account lacks read access to gs://${BUCKET}." >&2
+            echo "Grant with: gsutil iam ch serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL}:roles/storage.objectViewer gs://${BUCKET}" >&2
+            exit 1
+          fi
 
       # Use Application Default Credentials from WIF; no FIREBASE_TOKEN export
 
