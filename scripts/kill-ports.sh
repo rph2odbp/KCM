@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ports=(5173 9110 8088 9198 4050 9151 4501 5001)
+ports=(5173 5174 5175 9110 8088 9198 4050 9151 4501 5001)
 
 for p in "${ports[@]}"; do
   echo "[kill-ports] Checking :$p"

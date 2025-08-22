@@ -19,25 +19,13 @@ Notes:
 - The app uses Vite and React 18.
 - Sentry configuration is optional; keep `VITE_ENABLE_SENTRY=false` in CI/PRs.
 
-Authentication (modeled after Fireship example):
+Authentication:
 
 - Supports email/password, Google sign-in, and password reset.
-- When `VITE_USE_EMULATORS=true`, Auth connects to the local emulator via same-origin proxy to avoid CORS in tunnels.
-- Ensure `.env` has emulator-friendly placeholders, e.g. `VITE_FIREBASE_API_KEY=fake-api-key` and `VITE_FIREBASE_PROJECT_ID=demo-project`.
-- Seed local emulators with a user and role document:
-
-  ./scripts/seed-emulator.sh "Ryanhallford.br@gmail.com" "password"
-
-- Sign in with the seeded user, then pick a role from the top bar.
-- If a 400 appears for `identitytoolkit.googleapis.com`, check the dev server console for proxy logs that show the exact emulator error body.
+- The app targets real Firebase only; emulator mode is not supported.
 
 Admin roles:
 
 - Roles live in Firestore at `users/{uid}.roles`.
 - New accounts default to `parent` and `staff`.
-- Some emails auto-get `admin` via `functions-gen2/src/roles.util.ts`.
-- In emulators, you can grant admin in three ways:
-  - By email: `yarn grant:admin:email you@example.com`
-  - By uid: `yarn grant:admin <uid>`
-  - Create user and force admin: `yarn add:admin:user you@example.com yourpass`
-- The auth onCreate trigger preserves existing roles (arrayUnion), so adding admin won’t be overwritten on future logins.
+- Admin can be granted via production scripts or the Admin UI.

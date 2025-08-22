@@ -153,11 +153,7 @@ function Home() {
       </ul>
       <p>
         <strong>Status:</strong>{' '}
-        {import.meta.env.VITE_APP_ENV === 'staging'
-          ? 'Staging environment'
-          : import.meta.env.VITE_USE_EMULATORS === 'true'
-            ? 'Development (emulators)'
-            : 'Production'}
+        {import.meta.env.VITE_APP_ENV === 'staging' ? 'Staging environment' : 'Production'}
       </p>
     </section>
   )

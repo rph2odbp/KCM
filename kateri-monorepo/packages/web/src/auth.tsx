@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { auth, db, IS_EMULATOR } from './firebase'
+import { auth, db } from './firebase'
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -123,28 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, currentRole, disableAuthFlag])
 
   const signIn = async (email: string, password: string) => {
-    try {
-      return await signInWithEmailAndPassword(auth, email, password)
-    } catch (err: unknown) {
-      // In the Auth emulator it's common to lose users between restarts; auto-create for convenience.
-      const code: string | undefined = (err as { code?: string } | null | undefined)?.code
-      const canAutoCreate =
-        IS_EMULATOR &&
-        code &&
-        (code.includes('user-not-found') || code.includes('invalid-credential'))
-      if (canAutoCreate) {
-        console.info('[KCM] Auto-provisioning user in emulator after sign-in failure:', code)
-        const cred = await firebaseCreateUser(auth, email, password)
-        try {
-          const ref = doc(db, 'users', cred.user.uid)
-          await setDoc(ref, { email, displayName: '', roles: ['parent', 'staff'] }, { merge: true })
-        } catch (e) {
-          console.warn('[KCM] Failed to create profile during auto-provision', e)
-        }
-        return cred
-      }
-      throw err
-    }
+    return signInWithEmailAndPassword(auth, email, password)
   }
 
   const register = async (email: string, password: string) => {

@@ -66,7 +66,6 @@ export const functions = FUNCTIONS_ORIGIN
   ? getFunctions(app, FUNCTIONS_ORIGIN)
   : getFunctions(app, functionsRegion)
 export const storage = getStorage(app)
-export const IS_EMULATOR = false
 export const db = dbInstance
 
 // Optional analytics (browser-only):

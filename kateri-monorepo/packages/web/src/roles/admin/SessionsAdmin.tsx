@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { db, projectId, databaseId, auth, IS_EMULATOR } from '../../firebase'
+import { db, projectId, databaseId, auth } from '../../firebase'
 import { collection, doc, getDocs, query, setDoc, updateDoc, deleteDoc } from 'firebase/firestore'
 
 type Gender = 'boys' | 'girls'
@@ -97,12 +97,9 @@ export default function SessionsAdmin() {
           waitlistOpen: !!(f.waitlistOpen?.booleanValue ?? false),
         }
       })
-    const restList = async (direct = false) => {
-      const base = direct
-        ? `http://localhost:8088` // direct emulator access (may fail in remote tunnels)
-        : '' // same-origin proxy via Vite
+    const restList = async () => {
       const token = await auth.currentUser?.getIdToken().catch(() => undefined)
-      const url = `${base}/v1/projects/${projectId}/databases/${databaseId}/documents/sessions/${year}/${gender}`
+      const url = `/v1/projects/${projectId}/databases/${databaseId}/documents/sessions/${year}/${gender}`
       const res = await fetch(url, {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       })
@@ -117,8 +114,8 @@ export default function SessionsAdmin() {
       return toSessionDocs(json.documents || [])
     }
     try {
-      if (!IS_EMULATOR) {
-        // Production / hosted: just use SDK
+      // Production / hosted: use SDK first
+      try {
         const snap = await getDocs(query(colRef))
         setSessions(
           snap.docs.map(d => {
@@ -137,43 +134,12 @@ export default function SessionsAdmin() {
           }),
         )
         return
-      }
-      // Emulator: try SDK first (preferred if streaming works)
-      try {
-        const snap = await getDocs(query(colRef))
-        const items: SessionDoc[] = snap.docs.map(d => {
-          const data = d.data() as Partial<SessionDoc>
-          return {
-            id: d.id,
-            year: Number(data.year ?? 0),
-            name: String(data.name ?? ''),
-            gender: (data.gender as Gender) ?? 'boys',
-            startDate: String(data.startDate ?? ''),
-            endDate: String(data.endDate ?? ''),
-            capacity: Number(data.capacity ?? 0),
-            price: data.price !== undefined ? Number(data.price) : undefined,
-            waitlistOpen: data.waitlistOpen,
-          }
-        })
-        setSessions(items)
-        return
       } catch (sdkErr) {
         console.warn('[sessions-admin] SDK list failed, falling back to REST proxy', sdkErr)
       }
-      try {
-        const viaProxy = await restList(false)
-        setSessions(viaProxy)
-        return
-      } catch (restProxyErr) {
-        console.warn(
-          '[sessions-admin] REST proxy list failed, trying direct emulator',
-          restProxyErr,
-        )
-        const direct = await restList(true)
-        setSessions(direct)
-        setStatus('Loaded (direct emulator)')
-        return
-      }
+      const viaProxy = await restList()
+      setSessions(viaProxy)
+      return
     } catch (e) {
       const msg = (e as Error).message
       setStatus(`Load error: ${msg}`)
@@ -379,16 +345,11 @@ function NewOrEditSession({
         }
       }
 
-      if (IS_EMULATOR) {
-        // Directly use REST when in emulator to avoid mixed-content blocked streaming writes
+      try {
+        await setDoc(d, payload)
+      } catch (sdkErr) {
+        console.warn('[sessions-admin] SDK write failed, falling back to REST', sdkErr)
         await writeViaRest()
-      } else {
-        try {
-          await setDoc(d, payload)
-        } catch (sdkErr) {
-          console.warn('[sessions-admin] SDK write failed, falling back to REST', sdkErr)
-          await writeViaRest()
-        }
       }
       setMsg('Saved')
       onSaved()
