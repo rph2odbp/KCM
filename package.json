@@ -2,9 +2,7 @@
   "name": "kcm-root",
   "private": true,
   "scripts": {
-    "emulators": "firebase emulators:start --only auth,firestore,functions,storage,ui",
     "web:dev": "corepack yarn --cwd kateri-monorepo workspace @kateri/web dev",
-    "dev:all": "run-p emulators web:dev",
     "seed:sessions:2026": "node scripts/seed-sessions-2026.mjs",
     "grant:admin": "node scripts/grant-admin.mjs",
     "grant:admin:email": "node scripts/grant-admin-by-email.mjs",

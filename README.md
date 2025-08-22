@@ -12,7 +12,7 @@ This repository provides a complete, production-ready foundation for modern camp
 - **Firebase Integration**: Firestore database, Authentication, Cloud Functions, and Storage
 - **Payment Processing**: Adyen integration for secure payment handling
 - **CI/CD Pipeline**: Automated testing, building, and deployment workflows
-- **Development Environment**: Codespaces with pre-configured emulators
+- **Development Environment**: Codespaces, production-only Firebase
 
 ## 🚀 Quick Start
 
@@ -35,10 +35,8 @@ yarn install
 cp .firebaserc.example .firebaserc
 # Edit .firebaserc with your Firebase project ID
 
-# Start development servers
-yarn start:emulators  # Firebase emulators
+# Start development server
 yarn workspace:web dev  # React app (http://localhost:5173)
-yarn workspace:functions serve  # Functions emulator
 ```
 
 ### Environment Setup
@@ -201,9 +199,6 @@ yarn workspace:web storybook
 ### Functions Commands
 
 ```bash
-# Local development with emulators
-yarn workspace:functions serve
-
 # Build functions
 yarn workspace:functions build
 
@@ -342,7 +337,7 @@ Workflows (`deploy-*.yml`) now call google-github-actions/auth with id-token per
 - [x] Repository scaffolding and configuration
 - [x] Monorepo setup with Yarn workspaces
 - [x] CI/CD pipeline with GitHub Actions
-- [x] Firebase integration and emulators
+- [x] Firebase integration (production-only)
 - [x] Type-safe development environment
 
 ### Phase 2: Authentication & User Management

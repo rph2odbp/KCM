@@ -9,12 +9,11 @@ if (!uid) {
   process.exit(1);
 }
 
-// Point Admin SDK to emulators
-process.env.FIRESTORE_EMULATOR_HOST =
-  process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8088";
-process.env.FIREBASE_AUTH_EMULATOR_HOST =
-  process.env.FIREBASE_AUTH_EMULATOR_HOST || "127.0.0.1:9110";
-const PROJECT_ID = process.env.FIREBASE_PROJECT || "demo-project";
+// Production: rely on ADC or service account JSON
+const PROJECT_ID =
+  process.env.FIREBASE_PROJECT ||
+  process.env.GCLOUD_PROJECT ||
+  "kcm-firebase-b7d6a";
 
 if (!admin.apps.length) {
   admin.initializeApp({ projectId: PROJECT_ID });

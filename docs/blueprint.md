@@ -7,7 +7,7 @@ This blueprint captures the current product vision and working agreements for th
 - Monorepo: Yarn workspaces (`@kateri/web`, `@kateri/functions`, `@kateri/functions-gen2`, `@kateri/shared`).
 - Frontend: React + Vite + React Router + React Query.
 - Backend: Firebase (Auth, Firestore, Storage, Functions Gen1/Gen2), Sentry optional.
-- Local dev: Firebase Emulators are supported for local-only development (same-origin proxy to avoid CORS), with helper scripts and seeded users/roles. Emulators are not used in CI.
+- Local dev: Production APIs only; emulators are not supported.
 - Types: Zod schemas in `@kateri/shared` define data shapes and validation.
 - Security: Firestore rules enforce role-based and ownership access; production rules hardened for admin-only writes to system collections.
 
@@ -151,12 +151,9 @@ Deployed
 
 ## Local Development
 
-- Emulators: Ports aligned in `firebase.json` (auth: 9110, firestore: 8088, storage: 9198, functions: 5001, ui: 4050, hub: 9151). Emulators are for local dev only; the emulator CI workflow has been removed.
-- Vite proxy + emulator wiring in `packages/web/src/firebase.ts` to avoid CORS; supports full URL overrides for remote dev.
+- Use `yarn workspace:web dev` against production Firebase (with appropriate test data in a non-sensitive project if needed).
 - Helper scripts:
-  - `scripts/kill-ports.sh` – free emulator/dev ports.
-  - `scripts/seed-emulator.sh` – create a default `parent,staff` user and `users/{uid}` doc.
-  - `scripts/seed-sessions.sh [year]` – seed example sessions under `sessions/{year}/{boys|girls}/*`.
+  - `scripts/kill-ports.sh` – free dev ports.
 - Devcontainer ensures Corepack/Yarn and installs deps.
 
 ## Non-Functional Requirements

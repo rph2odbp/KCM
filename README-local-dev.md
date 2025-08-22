@@ -27,13 +27,9 @@ yarn --cwd kateri-monorepo typecheck
 yarn --cwd kateri-monorepo build
 ```
 
-## Emulators
+## Notes
 
-(Uses default project from .firebaserc)
-
-```
-yarn --cwd kateri-monorepo workspace @kateri/functions serve
-```
+- Emulators are not supported; develop against production Firebase APIs (use a safe project).
 
 ## Web dev
 

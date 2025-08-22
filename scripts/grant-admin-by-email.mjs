@@ -9,18 +9,8 @@ if (!emailArg) {
   process.exit(1);
 }
 
-// Optional emulator usage: set USE_EMULATORS=true to force emulator hosts.
-const useEmulators = process.env.USE_EMULATORS === "true";
-if (useEmulators) {
-  process.env.FIRESTORE_EMULATOR_HOST =
-    process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8088";
-  process.env.FIREBASE_AUTH_EMULATOR_HOST =
-    process.env.FIREBASE_AUTH_EMULATOR_HOST || "127.0.0.1:9110";
-  console.log("[grant-admin] Using emulators");
-} else {
-  // Production: rely on ADC (gcloud auth application-default login) or service account JSON (GOOGLE_APPLICATION_CREDENTIALS)
-  console.log("[grant-admin] Using production APIs");
-}
+// Production: rely on ADC (gcloud auth application-default login) or service account JSON (GOOGLE_APPLICATION_CREDENTIALS)
+console.log("[grant-admin] Using production APIs");
 const PROJECT_ID =
   process.env.FIREBASE_PROJECT ||
   process.env.GCLOUD_PROJECT ||
@@ -79,10 +69,7 @@ async function main() {
       );
       matchedDocs = [{ id: user.uid, ref }];
     } catch (e) {
-      console.error(
-        "No user found with email in Firestore or Auth emulator:",
-        emailArg
-      );
+      console.error("No user found with email in Firestore or Auth:", emailArg);
       console.error(
         "Tip: sign in once with this email in the app to create the account/profile, then re-run."
       );

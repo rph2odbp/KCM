@@ -44,37 +44,6 @@
       "corepack yarn --cwd kateri-monorepo workspace @kateri/web build"
     ]
   },
-  "emulators": {
-    "auth": {
-      "host": "0.0.0.0",
-      "port": 9110
-    },
-    "firestore": {
-      "host": "0.0.0.0",
-      "port": 8088
-    },
-    "functions": {
-      "host": "0.0.0.0",
-      "port": 5001
-    },
-    "storage": {
-      "host": "0.0.0.0",
-      "port": 9198
-    },
-    "ui": {
-      "enabled": true,
-      "host": "0.0.0.0",
-      "port": 4050
-    },
-    "hub": {
-      "host": "0.0.0.0",
-      "port": 9151
-    },
-    "logging": {
-      "port": 4501
-    },
-    "singleProjectMode": true
-  },
   "storage": {
     "rules": "storage.rules"
   }

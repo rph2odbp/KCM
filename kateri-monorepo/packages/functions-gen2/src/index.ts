@@ -10,7 +10,7 @@ export { createRegistration } from './register'
 // Initialize Sentry lazily (env or secret)
 ensureSentryInitialized()
 
-// admin + db are initialized in ./admin (supports emulator hot reload)
+// admin + db are initialized in ./admin
 
 const corsHandler = cors({ origin: true })
 

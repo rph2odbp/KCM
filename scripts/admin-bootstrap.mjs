@@ -6,7 +6,7 @@
 //   node scripts/admin-bootstrap.mjs grant-admin you@example.com
 //   node scripts/admin-bootstrap.mjs seed you@example.com 2026
 //   FIREBASE_SERVICE_ACCOUNT_PATH=./sa.json node scripts/admin-bootstrap.mjs grant-admin you@example.com
-//   USE_EMULATORS=true node scripts/admin-bootstrap.mjs grant-admin you@example.com
+//   # Emulator mode is no longer supported
 
 import { readFileSync } from "fs";
 import admin from "firebase-admin";
@@ -25,7 +25,6 @@ if (!emailArgRaw) {
 }
 
 const emailArg = emailArgRaw.toLowerCase();
-const useEmulators = process.env.USE_EMULATORS === "true";
 const PROJECT_ID =
   process.env.FIREBASE_PROJECT ||
   process.env.GCLOUD_PROJECT ||
@@ -33,7 +32,6 @@ const PROJECT_ID =
 const DATABASE_ID = process.env.FIRESTORE_DATABASE_ID || "kcm-db";
 
 function loadCredentialOptions() {
-  if (useEmulators) return { projectId: PROJECT_ID };
   const saPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
   const saJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (saJson) {
@@ -75,16 +73,7 @@ function loadCredentialOptions() {
   console.warn("  Provide one of:");
   console.warn("   - FIREBASE_SERVICE_ACCOUNT_PATH=path/to/key.json");
   console.warn('   - FIREBASE_SERVICE_ACCOUNT_JSON="$(cat key.json)"');
-  console.warn("   - USE_EMULATORS=true (for local emulators)");
   return { projectId: PROJECT_ID };
-}
-
-if (useEmulators) {
-  process.env.FIRESTORE_EMULATOR_HOST =
-    process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8088";
-  process.env.FIREBASE_AUTH_EMULATOR_HOST =
-    process.env.FIREBASE_AUTH_EMULATOR_HOST || "127.0.0.1:9110";
-  console.log("[bootstrap] Emulator mode");
 }
 
 if (!admin.apps.length) {

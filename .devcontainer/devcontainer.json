@@ -1,7 +1,7 @@
 {
   "name": "KCM Development Environment",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
-  
+
   "features": {
     "ghcr.io/devcontainers/features/java:1": {
       "version": "17",
@@ -40,18 +40,7 @@
     }
   },
 
-  "forwardPorts": [
-    3000,
-    4000,
-    5173,
-    8080,
-    9099,
-    4400,
-    4500,
-    5001,
-    8085,
-    9000
-  ],
+  "forwardPorts": [3000, 5173],
 
   "portsAttributes": {
     "3000": {
@@ -61,30 +50,6 @@
     "5173": {
       "label": "Vite Dev Server",
       "onAutoForward": "notify"
-    },
-    "4000": {
-      "label": "Firebase Emulator UI",
-      "onAutoForward": "notify"
-    },
-    "8080": {
-      "label": "Firebase Emulator Suite",
-      "onAutoForward": "silent"
-    },
-    "9099": {
-      "label": "Firestore Emulator",
-      "onAutoForward": "silent"
-    },
-    "5001": {
-      "label": "Functions Emulator",
-      "onAutoForward": "silent"
-    },
-    "9000": {
-      "label": "Auth Emulator",
-      "onAutoForward": "silent"
-    },
-    "8085": {
-      "label": "Storage Emulator",
-      "onAutoForward": "silent"
     }
   },
 

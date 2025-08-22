@@ -76,7 +76,7 @@ This checks for `gcloud` and `jq` and verifies `docs/ops/monitoring-dashboard.js
 
 ## Deploy and Rollback (Functions)
 
-- CI gates: every PR to `main`/`develop` runs typecheck, lint, tests, build; emulator smoke runs on PRs.
+- CI gates: every PR to `main`/`develop` runs typecheck, lint, tests, build.
 - Deploy Gen 2:
   - Tag-based deploy workflow runs on pushing tags `v*` (uses OIDC). Create a release tag to deploy gen2.
   - Manual: dispatch the "Deploy Gen2 Functions" workflow in Actions for an on-demand deploy.
@@ -128,6 +128,6 @@ This checks for `gcloud` and `jq` and verifies `docs/ops/monitoring-dashboard.js
 - High 5xx error-rate alert per function (e.g., >2% over 5m) and attach verified email channel.
 - Private health check job: Cloud Scheduler calling `helloWorld` with OIDC; ensure run.invoker on the job SA.
 - Secrets parity: move `SENTRY_TRACES_SAMPLE_RATE` and `SENTRY_ENV` to params/secrets.
-- CI polish: run emulator smoke on all PRs (develop/main) and unify Node to 22 in the smoke workflow.
+- CI polish: unify Node to 22 across workflows.
 - Dashboard extras: cold starts, instance count, memory/CPU by function.
 - Tests and runbooks: add a couple of targeted unit tests and extend restore/rollback runbooks with quick scripts.

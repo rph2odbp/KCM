@@ -27,7 +27,7 @@ export default function RoleSelector() {
     <section>
       <h2>Select your role</h2>
       <p>You can have multiple roles; pick the hat you want to wear this session.</p>
-      {/* emulator-only refresh removed */}
+      {/* production-only */}
       <ul>
         {roles.map(r => (
           <li key={r}>

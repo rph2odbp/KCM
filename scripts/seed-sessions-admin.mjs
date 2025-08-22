@@ -18,11 +18,7 @@ const YEAR = Number(process.env.YEAR || ARG_YEAR || 2026);
 const PROJECT_ID =
   process.env.FIREBASE_PROJECT || process.env.GCLOUD_PROJECT || "demo-project";
 const DATABASE_ID = process.env.FIRESTORE_DATABASE_ID || "kcm-db";
-const FIRESTORE_EMULATOR_HOST =
-  process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8088";
-
-// Force emulator usage if host appears to be local
-process.env.FIRESTORE_EMULATOR_HOST = FIRESTORE_EMULATOR_HOST;
+// Production: do not force emulator; rely on ADC or service account
 
 if (!admin.apps.length) {
   admin.initializeApp({ projectId: PROJECT_ID });

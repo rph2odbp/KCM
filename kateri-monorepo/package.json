@@ -15,17 +15,14 @@
     "rules:diff": "yarn dlx firebase-tools firestore:rules:dryrun --project kcm-firebase-b7d6a || echo 'Dry run complete'",
     "typecheck": "yarn workspaces foreach -A -v run typecheck",
     "format": "prettier --write \"**/*.{js,ts,tsx,json,md}\"",
-    "start": "concurrently \"yarn workspace:web dev\" \"yarn workspace:functions serve\"",
-    "start:emulators": "firebase emulators:start --only firestore,auth,storage",
+    "start": "concurrently \"yarn workspace:web dev\"",
     "emulators:kill-ports": "bash scripts/kill-ports.sh",
-    "emulators:restart": "bash scripts/kill-ports.sh && yarn workspace @kateri/functions serve",
     "clean": "yarn workspaces foreach -A -v run clean",
     "workspace:shared": "yarn workspace @kateri/shared",
     "workspace:web": "yarn workspace @kateri/web",
     "workspace:functions": "yarn workspace @kateri/functions",
     "workspace:functions-gen2": "yarn workspace @kateri/functions-gen2",
-    "deploy": "yarn dlx firebase-tools deploy --only functions,hosting --project kcm-firebase-b7d6a",
-    "emulators": "yarn dlx firebase-tools emulators:start --only firestore,auth,storage --project kcm-firebase-b7d6a"
+    "deploy": "yarn dlx firebase-tools deploy --only functions,hosting --project kcm-firebase-b7d6a"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.39.1",
