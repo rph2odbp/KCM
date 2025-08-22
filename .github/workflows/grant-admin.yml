@@ -24,8 +24,9 @@ jobs:
       FIRESTORE_DATABASE_ID: kcm-db
       GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
       GCP_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -39,15 +40,22 @@ jobs:
           corepack prepare yarn@4.1.0 --activate
           yarn --version
 
-      - name: Force node-modules linker for root (avoid PnP)
+      - name: Force node-modules linker (avoid PnP)
         run: |
-          printf "nodeLinker: node-modules\n" > .yarnrc.yml
+          echo "nodeLinker: node-modules" > .yarnrc.yml
           cat .yarnrc.yml
 
       - name: Clean caches (best effort)
         run: |
           yarn cache clean || true
           npm cache clean --force || true
+
+      - name: Validate required secrets and inputs
+        run: |
+          set -e
+          [ -n "${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}" ] || (echo "Missing GCP_WORKLOAD_IDENTITY_PROVIDER secret" && exit 1)
+          [ -n "${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}" ] || (echo "Missing GCP_SERVICE_ACCOUNT_EMAIL secret" && exit 1)
+          [ -n "${{ inputs.email }}" ] || (echo "Missing 'email' input" && exit 1)
 
       - name: Install root dependencies (for scripts)
         env:
@@ -64,12 +72,24 @@ jobs:
           create_credentials_file: true
           export_environment_variables: true
 
+      - name: Check grant-admin script exists
+        run: |
+          test -f scripts/grant-admin-by-email.mjs || (echo "Script not found: scripts/grant-admin-by-email.mjs" && exit 1)
+
       - name: Grant admin role via script (by email)
         env:
           GCLOUD_PROJECT: ${{ env.PROJECT_ID }}
           FIREBASE_PROJECT: ${{ env.PROJECT_ID }}
           FIRESTORE_DATABASE_ID: ${{ env.FIRESTORE_DATABASE_ID }}
-        run: yarn node scripts/grant-admin-by-email.mjs "${{ inputs.email }}"
+        run: |
+          set -o pipefail
+          yarn node scripts/grant-admin-by-email.mjs "${{ inputs.email }}" 2>&1 | tee admin-grant.log
+
+      - name: Output error logs on failure
+        if: failure()
+        run: |
+          echo "Grant admin script failed. Log output:"
+          cat admin-grant.log
 
       - name: Summary
         run: |
