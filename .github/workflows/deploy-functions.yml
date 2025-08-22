@@ -26,7 +26,6 @@ jobs:
       id-token: write
     env:
       PROJECT_ID: kcm-firebase-b7d6a
-      FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
       GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
       GCP_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
       SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
@@ -78,19 +77,14 @@ jobs:
           YARN_ENABLE_IMMUTABLE_INSTALLS: "true"
         run: yarn install --immutable
 
-      # Auth: prefer FIREBASE_TOKEN, else fall back to WIF
-      - name: Validate auth inputs
-        if: ${{ env.FIREBASE_TOKEN == '' && (env.GCP_WORKLOAD_IDENTITY_PROVIDER == '' || env.GCP_SERVICE_ACCOUNT_EMAIL == '') }}
+      - name: Validate WIF inputs
         run: |
-          echo "Either set FIREBASE_TOKEN secret or configure GCP_WORKLOAD_IDENTITY_PROVIDER and GCP_SERVICE_ACCOUNT_EMAIL." >&2
-          exit 1
-
-      - name: Use Firebase CI token if available
-        if: ${{ env.FIREBASE_TOKEN != '' }}
-        run: echo "FIREBASE_TOKEN=${{ env.FIREBASE_TOKEN }}" >> "$GITHUB_ENV"
+          if [ -z "${GCP_WORKLOAD_IDENTITY_PROVIDER}" ] || [ -z "${GCP_SERVICE_ACCOUNT_EMAIL}" ]; then
+            echo "Missing GCP_WORKLOAD_IDENTITY_PROVIDER or GCP_SERVICE_ACCOUNT_EMAIL secrets." >&2
+            exit 1
+          fi
 
       - name: Authenticate to Google Cloud (WIF)
-        if: ${{ env.FIREBASE_TOKEN == '' }}
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
@@ -100,11 +94,24 @@ jobs:
           export_environment_variables: true
 
       - name: Setup gcloud CLI
-        if: ${{ env.FIREBASE_TOKEN == '' }}
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Ensure SENTRY_DSN secret exists (and update if provided)
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcloud config set project "$PROJECT_ID" >/dev/null
+          if ! gcloud secrets describe SENTRY_DSN --project "$PROJECT_ID" >/dev/null 2>&1; then
+            echo "Creating Secret Manager secret SENTRY_DSN (automatic replication)"
+            gcloud secrets create SENTRY_DSN --project "$PROJECT_ID" --replication-policy=automatic || true
+          fi
+          if [ -n "${SENTRY_DSN:-}" ]; then
+            printf "%s" "$SENTRY_DSN" | gcloud secrets versions add SENTRY_DSN --project "$PROJECT_ID" --data-file=- >/dev/null
+          else
+            echo "SENTRY_DSN GitHub secret is empty; skipping version add."
+          fi
+
       - name: Best-effort grant Firestore access to runtime SA
-        if: ${{ env.FIREBASE_TOKEN == '' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -116,8 +123,29 @@ jobs:
             --member="serviceAccount:${RUNTIME_SA}" \
             --role="roles/datastore.user" || true
 
+      - name: Grant Secret Manager access to deploy SA (for functions config resolution)
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+            --member="serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL}" \
+            --role="roles/secretmanager.viewer" || true
+          gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+            --member="serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL}" \
+            --role="roles/secretmanager.secretAccessor" || true
+
+      - name: Grant Secret Manager access to runtime SA for SENTRY_DSN secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')
+          RUNTIME_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+          gcloud secrets add-iam-policy-binding SENTRY_DSN \
+            --project "$PROJECT_ID" \
+            --member "serviceAccount:${RUNTIME_SA}" \
+            --role roles/secretmanager.secretAccessor || true
+
       - name: Export Firebase access token from gcloud
-        if: ${{ env.FIREBASE_TOKEN == '' }}
         run: |
           set -euo pipefail
           TOKEN="$(gcloud auth print-access-token)"

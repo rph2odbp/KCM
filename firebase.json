@@ -1,12 +1,11 @@
 {
-  "firestore": {
-    "databases": {
-      "kcm-db": {
-        "rules": "firestore.rules",
-        "indexes": "firestore.indexes.json"
-      }
+  "firestore": [
+    {
+      "rules": "firestore.rules",
+      "indexes": "firestore.indexes.json",
+      "database": "kcm-db"
     }
-  },
+  ],
   "functions": [
     {
       "source": "kateri-monorepo/packages/functions",
