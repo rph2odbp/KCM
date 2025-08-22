@@ -26,10 +26,10 @@ jobs:
       id-token: write
     env:
       PROJECT_ID: kcm-firebase-b7d6a
-  FIREBASE_TOKEN: ""
-  GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-  GCP_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
-  SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+      FIREBASE_TOKEN: ""
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
     if: ${{ github.event_name != 'pull_request' }}
     steps:
       - name: Checkout code
