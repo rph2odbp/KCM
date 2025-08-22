@@ -71,3 +71,23 @@ jobs:
             echo "### Firestore users from database '${{ env.FIRESTORE_DATABASE_ID }}' (first ${{ inputs.limit }}):"
             sed -n '1,200p' firestore-users.log || true
           } >> $GITHUB_STEP_SUMMARY
+
+      - name: Show outputs in logs
+        if: always()
+        run: |
+          echo "### Auth users (first ${{ inputs.limit }}):"
+          (test -f auth-users.log && sed -n '1,200p' auth-users.log) || echo "<missing auth-users.log>"
+          echo
+          echo "### Firestore users from database '${{ env.FIRESTORE_DATABASE_ID }}' (first ${{ inputs.limit }}):"
+          (test -f firestore-users.log && sed -n '1,200p' firestore-users.log) || echo "<missing firestore-users.log>"
+
+      - name: Upload audit logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: users-audit-logs
+          path: |
+            auth-users.log
+            firestore-users.log
+          if-no-files-found: warn
+          retention-days: 7
