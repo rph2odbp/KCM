@@ -2,6 +2,7 @@
 /* eslint-disable no-console */
 import admin from "firebase-admin";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import fs from "fs";
 
 const emailArg = (process.argv[2] || "").toLowerCase();
 if (!emailArg) {
@@ -9,53 +10,53 @@ if (!emailArg) {
   process.exit(1);
 }
 
-// Production: rely on ADC (gcloud auth application-default login) or service account JSON (GOOGLE_APPLICATION_CREDENTIALS)
 console.log("[grant-admin] Using production APIs");
 const PROJECT_ID =
   process.env.FIREBASE_PROJECT ||
   process.env.GCLOUD_PROJECT ||
+  process.env.GCP_PROJECT ||
+  process.env.GOOGLE_CLOUD_PROJECT ||
   "kcm-firebase-b7d6a";
 
-if (!admin.apps.length) {
-  const saPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
-  const saJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  let options = { projectId: PROJECT_ID };
-  try {
-    if (saJson) {
-      const parsed = JSON.parse(saJson);
-      options = {
-        credential: admin.credential.cert(parsed),
-        projectId: PROJECT_ID,
-      };
-      console.log("[grant-admin] Using inline service account JSON");
-    } else if (saPath) {
-      // eslint-disable-next-line import/no-dynamic-require, global-require
-      const loaded = JSON.parse(require("fs").readFileSync(saPath, "utf8"));
-      options = {
-        credential: admin.credential.cert(loaded),
-        projectId: PROJECT_ID,
-      };
-      console.log("[grant-admin] Using service account from path");
-    }
-  } catch (e) {
-    console.warn(
-      "[grant-admin] Failed to parse provided service account credentials, falling back to ADC:",
-      e.message
-    );
+// Credential setup
+let options = { projectId: PROJECT_ID };
+try {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    // Inline JSON from env
+    const parsed = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+    options.credential = admin.credential.cert(parsed);
+    console.log("[grant-admin] Using inline service account JSON");
+  } else if (process.env.FIREBASE_SERVICE_ACCOUNT_PATH) {
+    // Path to JSON file
+    const loaded = JSON.parse(fs.readFileSync(process.env.FIREBASE_SERVICE_ACCOUNT_PATH, "utf8"));
+    options.credential = admin.credential.cert(loaded);
+    console.log("[grant-admin] Using service account from path");
+  } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    // GOOGLE_APPLICATION_CREDENTIALS is set, so admin SDK will pick it up automatically
+    console.log("[grant-admin] Using GOOGLE_APPLICATION_CREDENTIALS env");
+  } else {
+    console.log("[grant-admin] Relying on Application Default Credentials");
   }
+} catch (e) {
+  console.warn("[grant-admin] Failed to parse service account credentials, falling back to ADC:", e.message);
+}
+if (!admin.apps.length) {
   admin.initializeApp(options);
 }
-// Use the named Firestore database (kcm-db) to match the app and emulator seeding
+
+// Firestore database (ensure named database for emulator/prod parity)
 const db = getFirestore(admin.app(), "kcm-db");
 const auth = admin.auth();
 
 async function main() {
   // Look up user profile by email
   let matchedDocs = [];
+  // Try to find Firestore user
   const q = await db.collection("users").where("email", "==", emailArg).get();
   if (!q.empty) {
-    matchedDocs = q.docs;
+    matchedDocs = q.docs.map(doc => ({ id: doc.id, ref: doc.ref }));
   } else {
+    // Try to find Auth user and create Firestore doc if needed
     try {
       const user = await auth.getUserByEmail(emailArg);
       const ref = db.doc(`users/${user.uid}`);
@@ -76,6 +77,7 @@ async function main() {
       process.exit(2);
     }
   }
+  // Grant admin role
   for (const d of matchedDocs) {
     await d.ref.set(
       {
