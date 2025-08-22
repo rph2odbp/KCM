@@ -2,6 +2,7 @@
 /* eslint-disable no-console */
 import admin from "firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
+import { GoogleAuth } from "google-auth-library";
 
 const limit = Math.max(1, Number(process.argv[2] || 50));
 const PROJECT_ID =
@@ -11,12 +12,24 @@ const PROJECT_ID =
   "kcm-firebase-b7d6a";
 const DATABASE_ID = process.env.FIRESTORE_DATABASE_ID || "kcm-db";
 
-if (!admin.apps.length) {
-  admin.initializeApp({ projectId: PROJECT_ID });
+async function initAdmin() {
+  if (admin.apps.length) return;
+  const auth = new GoogleAuth({ scopes: ["https://www.googleapis.com/auth/cloud-platform"] });
+  const client = await auth.getClient();
+  const credential = {
+    getAccessToken: async () => {
+      const res = await client.getAccessToken();
+      const token = typeof res === "string" ? res : res?.token;
+      if (!token) throw new Error("Failed to obtain access token via ADC");
+      return { access_token: token, expires_in: 300 };
+    },
+  };
+  admin.initializeApp({ credential, projectId: PROJECT_ID });
 }
-const db = getFirestore(admin.app(), DATABASE_ID);
 
 async function main() {
+  await initAdmin();
+  const db = getFirestore(admin.app(), DATABASE_ID);
   console.log(
     `[firestore:${DATABASE_ID}] Listing up to ${limit} documents from users collection...`
   );

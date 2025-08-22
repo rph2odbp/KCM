@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 import admin from "firebase-admin";
+import { GoogleAuth } from "google-auth-library";
 
 const limit = Math.max(1, Number(process.argv[2] || 50));
 const PROJECT_ID =
@@ -9,11 +10,23 @@ const PROJECT_ID =
   process.env.GOOGLE_CLOUD_PROJECT ||
   "kcm-firebase-b7d6a";
 
-if (!admin.apps.length) {
-  admin.initializeApp({ projectId: PROJECT_ID });
+async function initAdmin() {
+  if (admin.apps.length) return;
+  const auth = new GoogleAuth({ scopes: ["https://www.googleapis.com/auth/cloud-platform"] });
+  const client = await auth.getClient();
+  const credential = {
+    getAccessToken: async () => {
+      const res = await client.getAccessToken();
+      const token = typeof res === "string" ? res : res?.token;
+      if (!token) throw new Error("Failed to obtain access token via ADC");
+      return { access_token: token, expires_in: 300 };
+    },
+  };
+  admin.initializeApp({ credential, projectId: PROJECT_ID });
 }
 
 async function main() {
+  await initAdmin();
   let nextPageToken = undefined;
   let count = 0;
   console.log(`[auth] Listing up to ${limit} users...`);
