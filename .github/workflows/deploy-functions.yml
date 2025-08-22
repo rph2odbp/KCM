@@ -155,3 +155,11 @@ jobs:
             --only createUserProfile \
             --project "$PROJECT_ID" \
             --limit 100 || true
+
+      - name: Tail logs for helloWorld (Gen2)
+        if: always()
+        run: |
+          yarn dlx firebase-tools@13.29.0 functions:log \
+            --only helloWorld \
+            --project "$PROJECT_ID" \
+            --limit 50 || true

@@ -7,9 +7,16 @@ This blueprint captures the current product vision and working agreements for th
 - Monorepo: Yarn workspaces (`@kateri/web`, `@kateri/functions`, `@kateri/functions-gen2`, `@kateri/shared`).
 - Frontend: React + Vite + React Router + React Query.
 - Backend: Firebase (Auth, Firestore, Storage, Functions Gen1/Gen2), Sentry optional.
-- Local dev: Firebase Emulators with same-origin proxy to avoid CORS, helper scripts, seeded users/roles.
+- Local dev: Firebase Emulators are supported for local-only development (same-origin proxy to avoid CORS), with helper scripts and seeded users/roles. Emulators are not used in CI.
 - Types: Zod schemas in `@kateri/shared` define data shapes and validation.
-- Security: Firestore rules enforce role-based and ownership access.
+- Security: Firestore rules enforce role-based and ownership access; production rules hardened for admin-only writes to system collections.
+
+### CI/CD and Ops
+
+- GitHub Actions: Node 22 + Corepack/Yarn 4; single primary workflow “Deploy Firebase Functions”.
+- Auth: Keyless deploys via Workload Identity Federation (OIDC). If `FIREBASE_TOKEN` is present, it’s used; otherwise WIF is used (recommended).
+- Secrets: `SENTRY_DSN` stored in Google Secret Manager and referenced by Gen2 functions; resolved at deploy time.
+- Project/env: `kcm-firebase-b7d6a` (region `us-central1`), Firestore database id `kcm-db`.
 
 ## Roles and Permissions
 
@@ -123,21 +130,34 @@ Open items for sessions:
 
 ## Cloud Functions
 
-- Auth Profile Create (Gen2)
-  - On user creation, create `users/{uid}` profile with roles. Admin whitelist supported.
-- Registration (Gen2 Callable)
+Runtimes
+
+- Gen2: Node 22 (https, scheduler, firestore triggers)
+- Gen1: Node 18 (tiny shim for Auth onCreate)
+
+Deployed
+
+- Auth Profile Create (Gen1)
+  - Trigger: `auth.user().onCreate`
+  - Behavior: Create/merge `users/{uid}` with default roles and metadata; admin whitelist supported.
+- Registration (Gen2 HTTPS)
   - `createRegistration`: Validates grade (2–8), resolves `gender` path (`boys|girls`), ensures camper exists/creates one, and writes registration to `sessions/{year}/{gender}/{sessionId}/registrations`.
   - Future: payment hooks, waitlist logic, capacity checks.
+- Utilities (Gen2)
+  - `helloWorld` (private HTTPS) for smoke
+  - `dailyHealthCheckV2` (scheduler)
+  - `onCamperUpdatedV2` (firestore onUpdate) on `campers/{camperId}` in database `kcm-db`
+  - Backups and auth cleanup tasks
 
 ## Local Development
 
-- Emulators: Ports aligned in `firebase.json` (auth: 9110, firestore: 8088, storage: 9198, functions: 5001, ui: 4050, hub: 9151).
+- Emulators: Ports aligned in `firebase.json` (auth: 9110, firestore: 8088, storage: 9198, functions: 5001, ui: 4050, hub: 9151). Emulators are for local dev only; the emulator CI workflow has been removed.
 - Vite proxy + emulator wiring in `packages/web/src/firebase.ts` to avoid CORS; supports full URL overrides for remote dev.
 - Helper scripts:
   - `scripts/kill-ports.sh` – free emulator/dev ports.
   - `scripts/seed-emulator.sh` – create a default `parent,staff` user and `users/{uid}` doc.
   - `scripts/seed-sessions.sh [year]` – seed example sessions under `sessions/{year}/{boys|girls}/*`.
-- Devcontainer `setup.sh` ensures Corepack/Yarn, installs deps, and prints quick-start commands.
+- Devcontainer ensures Corepack/Yarn and installs deps.
 
 ## Non-Functional Requirements
 
@@ -155,8 +175,8 @@ Open items for sessions:
 6. Medical flows: HIPAA-like safeguards, audit trails, emergency access, and redaction policies.
 7. Photo permissions: Explicit consent model for albums/tags; parent access controls.
 8. Analytics/Reporting: Scope and initial dashboards; export formats.
-9. Identity workflows: Future use of blocking functions (GCIP) for advanced registration checks.
-10. Gen1 vs Gen2 functions: Consolidate to Gen2 or maintain split; update emulators/start scripts accordingly.
+9. Identity workflows: Future use of blocking functions (GCIP/Identity Platform) for advanced checks; optional migration of Auth trigger to Gen2 blocking `beforeUserCreated`.
+10. Gen1 vs Gen2 functions: Decision for now is to maintain a minimal Gen1 function (Auth onCreate) and keep all other functions on Gen2. Revisit if/when moving to Identity Platform or when a suitable non-blocking Gen2 trigger is available.
 11. Multi-environment config: Secrets management, production/staging projects, and deployment gates.
 12. UI polish: Stepper components, error states, skeletons; accessibility and mobile layouts.
 
@@ -170,8 +190,11 @@ Open items for sessions:
 - Admin
   - Session CRUD UI and seed helpers; role management page.
 - Platform
-  - Tighten security rules with parent-centric checks; add unit/integration tests.
-  - Basic reporting queries and admin exports.
+  - CI/CD: Keep “Deploy Firebase Functions” as the single entrypoint; consider pruning the targeted deploy workflows.
+  - Auth: Optionally remove `FIREBASE_TOKEN` secret to enforce WIF-only; document WIF setup and runbook.
+  - Observability: Roll out Sentry DSN to frontend and tune sample rate; add a lightweight post-deploy smoke/log step.
+  - Rules: Tighten parent-centric checks; add unit/integration tests for critical rules and functions.
+  - Backups/Monitoring: Verify daily backups run and wire alerts/dashboards.
 
 ---
 
