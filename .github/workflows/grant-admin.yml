@@ -40,6 +40,11 @@ jobs:
           corepack prepare yarn@4.1.0 --activate
           yarn --version
 
+      - name: Force node-modules linker for root (avoid PnP)
+        run: |
+          printf "nodeLinker: node-modules\n" > .yarnrc.yml
+          cat .yarnrc.yml
+
       - name: Clean caches (best effort)
         run: |
           yarn cache clean || true
@@ -48,7 +53,8 @@ jobs:
       - name: Install root dependencies (for scripts)
         env:
           YARN_ENABLE_IMMUTABLE_INSTALLS: "true"
-        run: yarn install --immutable
+          YARN_ENABLE_SCRIPTS: "false"
+        run: yarn install --immutable --mode=skip-builds
 
       - name: Authenticate to Google Cloud (WIF)
         uses: google-github-actions/auth@v2
