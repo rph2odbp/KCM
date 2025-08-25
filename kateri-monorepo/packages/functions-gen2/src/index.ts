@@ -129,6 +129,10 @@ export const listMyRegistrations = onCall({ region: 'us-central1' }, async req =
   const uid = req.auth?.uid
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in required')
   try {
+    const inputYear = (req.data?.year ?? undefined) as number | string | undefined
+    const yearFilter = inputYear !== undefined && inputYear !== null && String(inputYear) !== ''
+      ? String(inputYear)
+      : undefined
     const items: Array<{
       id: string
       year: number
@@ -138,7 +142,9 @@ export const listMyRegistrations = onCall({ region: 'us-central1' }, async req =
       status: string
       missing?: Record<string, string[]>
     }> = []
-    const years = await db.collection('sessions').listDocuments()
+    const years = yearFilter
+      ? [db.collection('sessions').doc(yearFilter)]
+      : await db.collection('sessions').listDocuments()
     for (const yRef of years) {
       for (const gender of ['boys', 'girls'] as const) {
         const sessSnap = await yRef.collection(gender).get()
@@ -169,7 +175,7 @@ export const listMyRegistrations = onCall({ region: 'us-central1' }, async req =
         }
       }
     }
-    logger.info('listMyRegistrations scanned', { uid, count: items.length })
+    logger.info('listMyRegistrations scanned', { uid, count: items.length, year: yearFilter })
     return { ok: true, data: items }
   } catch (err) {
     captureException(err, { function: 'listMyRegistrations', uid })

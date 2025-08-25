@@ -136,6 +136,7 @@ function SessionsList() {
 
 function ManageRegistrations() {
   const { user } = useAuth()
+  const [year, setYear] = useState<number | ''>('')
   const [items, setItems] = useState<
     Array<{
       id: string
@@ -156,7 +157,8 @@ function ManageRegistrations() {
       try {
         // Server-side callable (best practice for user-owned lists)
         const fn = httpsCallable(functions, 'listMyRegistrations')
-        const resp = (await fn({})) as unknown as { data?: { ok: boolean; data?: any[] } }
+        const payload = year ? { year } : {}
+        const resp = (await fn(payload)) as unknown as { data?: { ok: boolean; data?: any[] } }
         if (resp?.data?.ok) {
           const serverRows = (resp.data.data || []) as Array<{
             id: string
@@ -181,13 +183,26 @@ function ManageRegistrations() {
       }
     }
     void run()
-  }, [user])
+  }, [user, year])
 
   return (
     <section style={{ marginTop: 16 }}>
       <h3>Manage Registrations</h3>
-      <div aria-live="polite" style={{ marginBottom: 8 }}>
-        {status}
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 8 }}>
+        <label>
+          Year filter
+          <input
+            type="number"
+            value={year}
+            onChange={e => {
+              const v = e.target.value
+              setYear(v === '' ? '' : parseInt(v))
+            }}
+            placeholder="All"
+            style={{ marginLeft: 6, width: 120 }}
+          />
+        </label>
+        <span aria-live="polite">{status}</span>
       </div>
       <table style={{ width: '100%', maxWidth: 980 }}>
         <thead>
