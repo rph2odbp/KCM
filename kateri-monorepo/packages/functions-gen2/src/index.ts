@@ -123,3 +123,36 @@ export const ensureUserProfile = onCall({ region: 'us-central1' }, async req => 
   )
   return { ok: true }
 })
+
+// Health endpoint to verify registration environment wiring
+export const registrationEnvHealthz = onRequest(
+  { region: 'us-central1', invoker: 'private', secrets: [SENTRY_DSN_SECRET] },
+  async (req, res) => {
+    try {
+      const databaseId = process.env.FIRESTORE_DATABASE_ID || '(default)'
+      // List years under sessions
+      const years = await db.collection('sessions').listDocuments()
+      const yearIds = years.map(d => d.id)
+      const { year, gender, sessionId } = req.query as {
+        year?: string
+        gender?: string
+        sessionId?: string
+      }
+      let exists: boolean | undefined
+      if (year && gender && sessionId) {
+        const sRef = db
+          .collection('sessions')
+          .doc(String(year))
+          .collection(String(gender))
+          .doc(String(sessionId))
+        const sSnap = await sRef.get()
+        exists = sSnap.exists
+      }
+      res.json({ ok: true, databaseId, years: yearIds, exists })
+    } catch (err) {
+      captureException(err, { function: 'registrationEnvHealthz' })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      res.status(500).json({ ok: false, error: (err as any)?.message || 'error' })
+    }
+  },
+)

@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ensureUserProfile = exports.backupFirestoreDaily = exports.cleanupDeletedUsersDaily = exports.onCamperUpdatedV2 = exports.dailyHealthCheckV2 = exports.helloWorld = exports.getSessionHoldsSummary = exports.ensureSessionCountersDaily = exports.sweepExpiredHoldsV2 = exports.releaseExpiredHolds = exports.confirmRegistration = exports.startRegistration = exports.createRegistration = void 0;
+exports.registrationEnvHealthz = exports.ensureUserProfile = exports.backupFirestoreDaily = exports.cleanupDeletedUsersDaily = exports.onCamperUpdatedV2 = exports.dailyHealthCheckV2 = exports.helloWorld = exports.getSessionHoldsSummary = exports.ensureSessionCountersDaily = exports.sweepExpiredHoldsV2 = exports.releaseExpiredHolds = exports.confirmRegistration = exports.startRegistration = exports.createRegistration = void 0;
 const firebase_functions_1 = require("firebase-functions");
 const https_1 = require("firebase-functions/v2/https");
 const v2_1 = require("firebase-functions/v2");
@@ -108,5 +108,31 @@ exports.ensureUserProfile = (0, https_1.onCall)({ region: 'us-central1' }, async
         createdAt: firestore_2.FieldValue.serverTimestamp(),
     }, { merge: true });
     return { ok: true };
+});
+// Health endpoint to verify registration environment wiring
+exports.registrationEnvHealthz = (0, https_1.onRequest)({ region: 'us-central1', invoker: 'private', secrets: [sentry_1.SENTRY_DSN_SECRET] }, async (req, res) => {
+    try {
+        const databaseId = process.env.FIRESTORE_DATABASE_ID || '(default)';
+        // List years under sessions
+        const years = await admin_1.db.collection('sessions').listDocuments();
+        const yearIds = years.map(d => d.id);
+        const { year, gender, sessionId } = req.query;
+        let exists;
+        if (year && gender && sessionId) {
+            const sRef = admin_1.db
+                .collection('sessions')
+                .doc(String(year))
+                .collection(String(gender))
+                .doc(String(sessionId));
+            const sSnap = await sRef.get();
+            exists = sSnap.exists;
+        }
+        res.json({ ok: true, databaseId, years: yearIds, exists });
+    }
+    catch (err) {
+        (0, sentry_1.captureException)(err, { function: 'registrationEnvHealthz' });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        res.status(500).json({ ok: false, error: err?.message || 'error' });
+    }
 });
 //# sourceMappingURL=index.js.map
