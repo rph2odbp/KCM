@@ -10,7 +10,6 @@
     {
       "source": "kateri-monorepo/packages/functions",
       "codebase": "default",
-      "serviceAccountEmail": "github-deployer@kcm-firebase-b7d6a.iam.gserviceaccount.com",
       "ignore": [
         "node_modules",
         ".git",
@@ -25,11 +24,9 @@
     {
       "source": "kateri-monorepo/packages/functions-gen2",
       "codebase": "gen2",
-      "serviceAccountEmail": "github-deployer@kcm-firebase-b7d6a.iam.gserviceaccount.com",
-      "runtime": {
-        "env": {
-          "FIRESTORE_DATABASE_ID": "kcm-db"
-        }
+      "runtime": "nodejs22",
+      "environmentVariables": {
+        "FIRESTORE_DATABASE_ID": "kcm-db"
       },
       "ignore": [
         "node_modules",
