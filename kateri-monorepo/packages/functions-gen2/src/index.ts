@@ -124,6 +124,33 @@ export const ensureUserProfile = onCall({ region: 'us-central1' }, async req => 
   return { ok: true }
 })
 
+// Debug/support callable: list the caller's registrations (fallback when client rules block CG reads)
+export const listMyRegistrations = onCall({ region: 'us-central1' }, async req => {
+  const uid = req.auth?.uid
+  if (!uid) throw new HttpsError('unauthenticated', 'Sign in required')
+  const snap = await db.collectionGroup('registrations').where('parentId', '==', uid).get()
+  const items = snap.docs.map(d => {
+    const data = d.data() as Partial<{
+      year: number
+      gender: 'boys' | 'girls'
+      sessionId: string
+      camperId: string
+      status: string
+      missing?: Record<string, string[]>
+    }>
+    return {
+      id: d.id,
+      year: Number(data.year ?? 0),
+      gender: (data.gender as 'boys' | 'girls') || 'boys',
+      sessionId: String(data.sessionId ?? ''),
+      camperId: String(data.camperId ?? ''),
+      status: String(data.status ?? ''),
+      missing: (data.missing as Record<string, string[]>) || undefined,
+    }
+  })
+  return { ok: true, data: items }
+})
+
 // Health endpoint to verify registration environment wiring
 export const registrationEnvHealthz = onRequest(
   { region: 'us-central1', invoker: 'private', secrets: [SENTRY_DSN_SECRET] },

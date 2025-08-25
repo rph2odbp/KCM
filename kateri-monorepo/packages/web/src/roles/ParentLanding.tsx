@@ -1,6 +1,7 @@
 import { db } from '../firebase'
 import { useEffect, useState } from 'react'
 import { collection, collectionGroup, getDocs, query, where } from 'firebase/firestore'
+import { getFunctions, httpsCallable } from 'firebase/functions'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth'
 // Registration routes are handled at the app level
@@ -152,10 +153,12 @@ function ManageRegistrations() {
       if (!user) return
       setStatus('')
       try {
+        console.info('[KCM] ManageRegistrations: querying for user', user.uid)
         const cg = collectionGroup(db, 'registrations')
         const qy = query(cg, where('parentId', '==', user.uid))
         const snap = await getDocs(qy)
-        const rows = snap.docs.map(d => {
+        console.info('[KCM] ManageRegistrations: found registrations', snap.size)
+        const rows = snap.docs.map((d: { id: string; data: () => unknown }) => {
           const data = d.data() as Partial<{
             year: number
             gender: 'boys' | 'girls'
@@ -176,7 +179,23 @@ function ManageRegistrations() {
         })
         setItems(rows)
       } catch (e) {
-        setStatus(`Failed to load registrations: ${(e as Error).message}`)
+        const err = e as Error & { code?: string }
+        console.warn('[KCM] ManageRegistrations error', err)
+        const code = (err as any)?.code || (err as any)?.name || ''
+        if (code === 'permission-denied' || code === 'PERMISSION_DENIED') {
+          try {
+            const fn = httpsCallable(getFunctions(), 'listMyRegistrations')
+            const resp = (await fn({})) as unknown as { data?: { ok: boolean; data?: any[] } }
+            if (resp?.data?.ok) {
+              setItems(resp.data.data || [])
+              setStatus('')
+              return
+            }
+          } catch (fallbackErr) {
+            console.warn('[KCM] listMyRegistrations fallback failed', fallbackErr)
+          }
+        }
+        setStatus(`Failed to load registrations: ${err.message}${code ? ` (code: ${code})` : ''}`)
       }
     }
     void run()
@@ -229,6 +248,11 @@ function ManageRegistrations() {
           })}
         </tbody>
       </table>
+      {items.length === 0 && (
+        <div style={{ marginTop: 8, color: '#555' }}>
+          No registrations found yet. If you just held a spot, try refreshing this page.
+        </div>
+      )}
     </section>
   )
 }
