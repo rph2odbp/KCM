@@ -114,6 +114,18 @@ jobs:
           gcloud auth print-access-token >/dev/null
           echo "ADC usable via gcloud"
 
+      - name: Assert impersonated account matches expected deploy SA
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTIVE=$(gcloud auth list --filter=status:ACTIVE --format='value(account)')
+          echo "Expected SA: ${GCP_SERVICE_ACCOUNT_EMAIL}"
+          echo "Active SA:   ${ACTIVE}"
+          if [ "${ACTIVE}" != "${GCP_SERVICE_ACCOUNT_EMAIL}" ]; then
+            echo "::error title=Auth mismatch::Active gcloud account does not match expected deploy service account. Check GCP_WORKLOAD_IDENTITY_PROVIDER and GCP_SERVICE_ACCOUNT_EMAIL secrets and WIF bindings."
+            exit 1
+          fi
+
       - name: Validate required IAM roles and bindings (preflight)
         shell: bash
         run: |
@@ -121,6 +133,7 @@ jobs:
           gcloud config set project "$PROJECT_ID" >/dev/null
           PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')
           RUNTIME_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+          APPENGINE_SA="${PROJECT_ID}@appspot.gserviceaccount.com"
           CLOUDBUILD_SA="${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com"
 
           echo "Checking project-level roles for ${GCP_SERVICE_ACCOUNT_EMAIL}..."
@@ -139,7 +152,7 @@ jobs:
           check_role roles/cloudfunctions.developer
           check_role roles/run.admin
           check_role roles/cloudbuild.builds.editor
-          check_role roles/datastore.user
+          # roles/datastore.user is required for runtime SAs, not the deploy SA; check those below instead
           check_role roles/secretmanager.viewer
           check_role roles/secretmanager.secretAccessor
 
@@ -148,12 +161,24 @@ jobs:
             if grep -q "roles/iam.serviceAccountUser" /tmp/rt.json && grep -q "serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL}" /tmp/rt.json; then
               echo "✓ roles/iam.serviceAccountUser on ${RUNTIME_SA}"
             else
-              echo "MISSING: roles/iam.serviceAccountUser on ${RUNTIME_SA} for ${GCP_SERVICE_ACCOUNT_EMAIL}"
-              MISSING_RT_SA=1
+              echo "WARN: roles/iam.serviceAccountUser not visible for ${GCP_SERVICE_ACCOUNT_EMAIL} on ${RUNTIME_SA} (may not be required when using default compute SA)."
             fi
           else
-            echo "WARN: Could not read IAM policy for ${RUNTIME_SA} (insufficient permissions to view)."
-            MISSING_RT_SA=1
+            echo "WARN: Could not read IAM policy for ${RUNTIME_SA} (insufficient permissions to view). Skipping as non-blocking."
+          fi
+
+          echo "Checking Firestore access for runtime SAs (roles/datastore.user)..."
+          if echo "$POLICY" | grep -q "roles/datastore.user" && echo "$POLICY" | grep -q "serviceAccount:${RUNTIME_SA}"; then
+            echo "✓ ${RUNTIME_SA} has roles/datastore.user"
+          else
+            echo "MISSING: roles/datastore.user on ${RUNTIME_SA}"
+            MISSING_RUNTIME_DATASTORE=1
+          fi
+          if echo "$POLICY" | grep -q "roles/datastore.user" && echo "$POLICY" | grep -q "serviceAccount:${APPENGINE_SA}"; then
+            echo "✓ ${APPENGINE_SA} has roles/datastore.user (Gen1)"
+          else
+            echo "MISSING: roles/datastore.user on ${APPENGINE_SA} (Gen1 runtime SA)"
+            MISSING_APPENGINE_DATASTORE=1
           fi
 
           echo "Checking Cloud Build SA Artifact Registry writer..."
@@ -164,13 +189,14 @@ jobs:
             MISSING_CLOUD_BUILD_WRITER=1
           fi
 
-          if [ -n "${MISSING_ROLES}" ] || [ "${MISSING_RT_SA:-0}" = "1" ] || [ "${MISSING_CLOUD_BUILD_WRITER:-0}" = "1" ]; then
+          if [ -n "${MISSING_ROLES}" ] || [ "${MISSING_RUNTIME_DATASTORE:-0}" = "1" ] || [ "${MISSING_APPENGINE_DATASTORE:-0}" = "1" ] || [ "${MISSING_CLOUD_BUILD_WRITER:-0}" = "1" ]; then
             echo "::error title=Missing IAM roles/bindings detected::" \
               "One or more required roles are missing for deployment. Please grant the following and re-run:"
             echo
             echo "Project: $PROJECT_ID"
             echo "Deploy SA: ${GCP_SERVICE_ACCOUNT_EMAIL}"
             echo "Runtime SA: ${RUNTIME_SA}"
+            echo "App Engine default SA (Gen1): ${APPENGINE_SA}"
             echo "Cloud Build SA: ${CLOUDBUILD_SA}"
             echo
             if [ -n "${MISSING_ROLES}" ]; then
@@ -182,15 +208,17 @@ jobs:
               echo "gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL} --role=roles/cloudfunctions.developer"
               echo "gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL} --role=roles/run.admin"
               echo "gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL} --role=roles/cloudbuild.builds.editor"
-              echo "gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL} --role=roles/datastore.user"
               echo "gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL} --role=roles/secretmanager.viewer"
               echo "gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL} --role=roles/secretmanager.secretAccessor"
               echo
             fi
-            if [ "${MISSING_RT_SA:-0}" = "1" ]; then
-              echo "Missing SA User on runtime SA: ${RUNTIME_SA}"
+            if [ "${MISSING_RUNTIME_DATASTORE:-0}" = "1" ] || [ "${MISSING_APPENGINE_DATASTORE:-0}" = "1" ]; then
+              echo "Missing Firestore access (roles/datastore.user) for runtime SAs:"
+              [ "${MISSING_RUNTIME_DATASTORE:-0}" = "1" ] && echo " - ${RUNTIME_SA}"
+              [ "${MISSING_APPENGINE_DATASTORE:-0}" = "1" ] && echo " - ${APPENGINE_SA}"
               echo "Grant (requires Project Owner/Editor):"
-              echo "gcloud iam service-accounts add-iam-policy-binding ${RUNTIME_SA} --member=serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL} --role=roles/iam.serviceAccountUser"
+              [ "${MISSING_RUNTIME_DATASTORE:-0}" = "1" ] && echo "gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:${RUNTIME_SA} --role=roles/datastore.user"
+              [ "${MISSING_APPENGINE_DATASTORE:-0}" = "1" ] && echo "gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:${APPENGINE_SA} --role=roles/datastore.user"
               echo
             fi
             if [ "${MISSING_CLOUD_BUILD_WRITER:-0}" = "1" ]; then
@@ -227,6 +255,11 @@ jobs:
           echo "Granting roles/datastore.user to ${RUNTIME_SA} (best effort)"
           gcloud projects add-iam-policy-binding "$PROJECT_ID" \
             --member="serviceAccount:${RUNTIME_SA}" \
+            --role="roles/datastore.user" || true
+          APPENGINE_SA="${PROJECT_ID}@appspot.gserviceaccount.com"
+          echo "Granting roles/datastore.user to ${APPENGINE_SA} (best effort; for Gen1)"
+          gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+            --member="serviceAccount:${APPENGINE_SA}" \
             --role="roles/datastore.user" || true
 
       - name: Grant Secret Manager access to deploy SA (for functions config resolution)
