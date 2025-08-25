@@ -3,12 +3,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.backupFirestoreDaily = exports.cleanupDeletedUsersDaily = exports.onCamperUpdatedV2 = exports.dailyHealthCheckV2 = exports.helloWorld = exports.createRegistration = void 0;
+exports.ensureUserProfile = exports.backupFirestoreDaily = exports.cleanupDeletedUsersDaily = exports.onCamperUpdatedV2 = exports.dailyHealthCheckV2 = exports.helloWorld = exports.createRegistration = void 0;
 const firebase_functions_1 = require("firebase-functions");
 const https_1 = require("firebase-functions/v2/https");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const firestore_1 = require("firebase-functions/v2/firestore");
 require("./admin");
+const admin_1 = require("./admin");
+const firestore_2 = require("firebase-admin/firestore");
 const cors_1 = __importDefault(require("cors"));
 const sentry_1 = require("./sentry");
 var register_1 = require("./register");
@@ -75,4 +77,21 @@ var backup_1 = require("./backup");
 Object.defineProperty(exports, "backupFirestoreDaily", { enumerable: true, get: function () { return backup_1.backupFirestoreDaily; } });
 // Auth user profile bootstrap on create
 // Note: Gen1-style onCreate trigger lives in @kateri/functions (Gen1 codebase)
+// Callable to ensure a user's profile exists (server-side, bypasses rules)
+exports.ensureUserProfile = (0, https_1.onCall)({ region: 'us-central1' }, async (req) => {
+    const uid = req.auth?.uid;
+    if (!uid)
+        throw new https_1.HttpsError('unauthenticated', 'Sign in required');
+    const email = (req.data?.email || '').toLowerCase();
+    const ref = admin_1.db.collection('users').doc(uid);
+    await ref.set({
+        email,
+        displayName: '',
+        roles: firestore_2.FieldValue.arrayUnion('parent', 'staff'),
+        isActive: true,
+        updatedAt: firestore_2.FieldValue.serverTimestamp(),
+        createdAt: firestore_2.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    return { ok: true };
+});
 //# sourceMappingURL=index.js.map

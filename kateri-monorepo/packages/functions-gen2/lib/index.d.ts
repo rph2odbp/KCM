@@ -7,3 +7,6 @@ export declare const onCamperUpdatedV2: import("firebase-functions").CloudFuncti
 }>>;
 export { cleanupDeletedUsersDaily } from './auth.cleanup';
 export { backupFirestoreDaily } from './backup';
+export declare const ensureUserProfile: import("firebase-functions/v2/https").CallableFunction<any, Promise<{
+    ok: boolean;
+}>, unknown>;

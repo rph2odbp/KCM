@@ -40,5 +40,5 @@ const firestore_1 = require("firebase-admin/firestore");
 if (admin.apps.length === 0) {
     admin.initializeApp();
 }
-exports.db = (0, firestore_1.getFirestore)('kcm-db');
+exports.db = (0, firestore_1.getFirestore)(admin.app(), 'kcm-db');
 //# sourceMappingURL=admin.js.map

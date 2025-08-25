@@ -1,8 +1,10 @@
 import { logger } from 'firebase-functions'
-import { onRequest } from 'firebase-functions/v2/https'
+import { onRequest, onCall, HttpsError } from 'firebase-functions/v2/https'
 import { onSchedule } from 'firebase-functions/v2/scheduler'
 import { onDocumentUpdated } from 'firebase-functions/v2/firestore'
 import './admin'
+import { db } from './admin'
+import { FieldValue } from 'firebase-admin/firestore'
 import cors from 'cors'
 import { SENTRY_DSN_SECRET, ensureSentryInitialized, captureException } from './sentry'
 export { createRegistration } from './register'
@@ -80,3 +82,23 @@ export { backupFirestoreDaily } from './backup'
 
 // Auth user profile bootstrap on create
 // Note: Gen1-style onCreate trigger lives in @kateri/functions (Gen1 codebase)
+
+// Callable to ensure a user's profile exists (server-side, bypasses rules)
+export const ensureUserProfile = onCall({ region: 'us-central1' }, async req => {
+  const uid = req.auth?.uid
+  if (!uid) throw new HttpsError('unauthenticated', 'Sign in required')
+  const email = (req.data?.email || '').toLowerCase()
+  const ref = db.collection('users').doc(uid)
+  await ref.set(
+    {
+      email,
+      displayName: '',
+      roles: FieldValue.arrayUnion('parent', 'staff'),
+      isActive: true,
+      updatedAt: FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  )
+  return { ok: true }
+})

@@ -11,6 +11,7 @@ import {
   sendPasswordResetEmail,
   type User as FirebaseUser,
 } from 'firebase/auth'
+import { getFunctions, httpsCallable } from 'firebase/functions'
 import { doc, onSnapshot, setDoc } from 'firebase/firestore'
 
 type AuthContextType = {
@@ -168,6 +169,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
     } catch (err) {
       console.warn('Failed to create user profile after register', err)
+    }
+    // Server-side ensure as fallback
+    try {
+      const fn = httpsCallable(getFunctions(), 'ensureUserProfile')
+      await fn({ email })
+    } catch (e) {
+      console.warn('ensureUserProfile callable failed', e)
     }
   }
 
