@@ -41,7 +41,7 @@ if (admin.apps.length === 0) {
     admin.initializeApp();
 }
 const app = admin.app();
-// Use explicit database ID if provided; otherwise default to 'kcm-db'
-exports.databaseIdInUse = process.env.FIRESTORE_DATABASE_ID || 'kcm-db';
-exports.db = (0, firestore_1.getFirestore)(app, exports.databaseIdInUse);
+const databaseId = process.env.FIRESTORE_DATABASE_ID;
+exports.databaseIdInUse = databaseId ?? '(default)';
+exports.db = databaseId ? (0, firestore_1.getFirestore)(app, databaseId) : (0, firestore_1.getFirestore)(app);
 //# sourceMappingURL=admin.js.map

@@ -129,7 +129,7 @@ export const registrationEnvHealthz = onRequest(
   { region: 'us-central1', invoker: 'private', secrets: [SENTRY_DSN_SECRET] },
   async (req, res) => {
     try {
-      const databaseId = databaseIdInUse
+  const databaseId = databaseIdInUse
       // List years under sessions
       const years = await db.collection('sessions').listDocuments()
       const yearIds = years.map(d => d.id)
