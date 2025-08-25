@@ -13,8 +13,13 @@ function defaultRolesForEmail(email: string) {
 
 // Initialize Firebase Admin SDK for compatibility; no Gen 1 exports remain.
 admin.initializeApp()
-// Ensure Firestore default app uses the named database 'kcm-db'
-getFirestore('kcm-db')
+// Ensure Firestore default app uses configured database (default if unset)
+const DATABASE_ID = process.env.FIRESTORE_DATABASE_ID
+if (DATABASE_ID) {
+  getFirestore(DATABASE_ID)
+} else {
+  getFirestore()
+}
 
 // Auth triggers migrated to Gen 2 (see @kateri/functions-gen2)
 // Callable admin helper (local dev) to set custom claims and mirror roles to /users/{uid}
@@ -30,7 +35,7 @@ export const setUserRoles = async (req: Request, res: Response) => {
     const claims: Record<string, boolean> = {}
     roles.forEach((r: string) => (claims[r] = true))
     await admin.auth().setCustomUserClaims(uid, claims)
-    const db = getFirestore('kcm-db')
+    const db = DATABASE_ID ? getFirestore(DATABASE_ID) : getFirestore()
     await db
       .collection('users')
       .doc(uid)
@@ -49,7 +54,7 @@ export const createUserProfile = auth.user().onCreate(async u => {
 
   const roles = defaultRolesForEmail(email)
 
-  const db = getFirestore('kcm-db')
+  const db = DATABASE_ID ? getFirestore(DATABASE_ID) : getFirestore()
   await db
     .collection('users')
     .doc(uid)

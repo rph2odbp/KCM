@@ -24,12 +24,12 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    if: ${{ github.event_name != 'pull_request' }}
     env:
       PROJECT_ID: kcm-firebase-b7d6a
       GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
       GCP_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
       SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-    if: ${{ github.event_name != 'pull_request' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -40,7 +40,9 @@ jobs:
           if [ -n "${FIREBASE_TOKEN:-}" ]; then echo "FIREBASE_TOKEN was set; cleared"; else echo "FIREBASE_TOKEN not set"; fi
 
       - name: Install build dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential python3
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 make g++
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -135,6 +137,13 @@ jobs:
           RUNTIME_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
           APPENGINE_SA="${PROJECT_ID}@appspot.gserviceaccount.com"
           CLOUDBUILD_SA="${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com"
+          # Collect any explicitly configured runtime SAs from firebase.json and env
+          CONFIGURED_SAS=()
+          if [ -f firebase.json ]; then
+            MAP=$(node -e 'try{const f=require("./firebase.json");const s=new Set();for(const e of (f.functions||[])){if(e&&e.serviceAccountEmail)s.add(e.serviceAccountEmail)}if(process.env.FUNCTIONS_RUNTIME_SERVICE_ACCOUNT)s.add(process.env.FUNCTIONS_RUNTIME_SERVICE_ACCOUNT);console.log(JSON.stringify([...s]));}catch(e){console.error("[]")}')
+            # shellcheck disable=SC2207
+            CONFIGURED_SAS=($(echo "$MAP" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{for(const v of JSON.parse(s||"[]")){console.log(v)}}catch{}})'))
+          fi
 
           echo "Checking project-level roles for ${GCP_SERVICE_ACCOUNT_EMAIL}..."
           POLICY=$(gcloud projects get-iam-policy "$PROJECT_ID" --format=json)
@@ -180,6 +189,17 @@ jobs:
             echo "MISSING: roles/datastore.user on ${APPENGINE_SA} (Gen1 runtime SA)"
             MISSING_APPENGINE_DATASTORE=1
           fi
+          if [ ${#CONFIGURED_SAS[@]} -gt 0 ]; then
+            echo "Checking Firestore access for configured runtime SAs from firebase.json/env..."
+            for CSA in "${CONFIGURED_SAS[@]}"; do
+              if echo "$POLICY" | grep -q '"roles/datastore.user"' && echo "$POLICY" | grep -q "serviceAccount:${CSA}"; then
+                echo "✓ ${CSA} has roles/datastore.user"
+              else
+                echo "MISSING: roles/datastore.user on ${CSA}"
+                MISSING_CONFIGURED_SA_DATASTORE=1
+              fi
+            done
+          fi
 
           echo "Checking Cloud Build SA Artifact Registry writer..."
           if echo "$POLICY" | grep -q "roles/artifactregistry.writer" && echo "$POLICY" | grep -q "serviceAccount:${CLOUDBUILD_SA}"; then
@@ -189,7 +209,7 @@ jobs:
             MISSING_CLOUD_BUILD_WRITER=1
           fi
 
-          if [ -n "${MISSING_ROLES}" ] || [ "${MISSING_RUNTIME_DATASTORE:-0}" = "1" ] || [ "${MISSING_APPENGINE_DATASTORE:-0}" = "1" ] || [ "${MISSING_CLOUD_BUILD_WRITER:-0}" = "1" ]; then
+          if [ -n "${MISSING_ROLES}" ] || [ "${MISSING_RUNTIME_DATASTORE:-0}" = "1" ] || [ "${MISSING_APPENGINE_DATASTORE:-0}" = "1" ] || [ "${MISSING_CLOUD_BUILD_WRITER:-0}" = "1" ] || [ "${MISSING_CONFIGURED_SA_DATASTORE:-0}" = "1" ]; then
             echo "::error title=Missing IAM roles/bindings detected::" \
               "One or more required roles are missing for deployment. Please grant the following and re-run:"
             echo
@@ -198,6 +218,9 @@ jobs:
             echo "Runtime SA: ${RUNTIME_SA}"
             echo "App Engine default SA (Gen1): ${APPENGINE_SA}"
             echo "Cloud Build SA: ${CLOUDBUILD_SA}"
+            if [ ${#CONFIGURED_SAS[@]} -gt 0 ]; then
+              echo "Configured runtime SA(s): ${CONFIGURED_SAS[*]}"
+            fi
             echo
             if [ -n "${MISSING_ROLES}" ]; then
               echo "Missing project roles on ${GCP_SERVICE_ACCOUNT_EMAIL}:"
@@ -216,9 +239,15 @@ jobs:
               echo "Missing Firestore access (roles/datastore.user) for runtime SAs:"
               [ "${MISSING_RUNTIME_DATASTORE:-0}" = "1" ] && echo " - ${RUNTIME_SA}"
               [ "${MISSING_APPENGINE_DATASTORE:-0}" = "1" ] && echo " - ${APPENGINE_SA}"
+              if [ "${MISSING_CONFIGURED_SA_DATASTORE:-0}" = "1" ] && [ ${#CONFIGURED_SAS[@]} -gt 0 ]; then
+                for CSA in "${CONFIGURED_SAS[@]}"; do echo " - ${CSA}"; done
+              fi
               echo "Grant (requires Project Owner/Editor):"
               [ "${MISSING_RUNTIME_DATASTORE:-0}" = "1" ] && echo "gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:${RUNTIME_SA} --role=roles/datastore.user"
               [ "${MISSING_APPENGINE_DATASTORE:-0}" = "1" ] && echo "gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:${APPENGINE_SA} --role=roles/datastore.user"
+              if [ "${MISSING_CONFIGURED_SA_DATASTORE:-0}" = "1" ] && [ ${#CONFIGURED_SAS[@]} -gt 0 ]; then
+                for CSA in "${CONFIGURED_SAS[@]}"; do echo "gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:${CSA} --role=roles/datastore.user"; done
+              fi
               echo
             fi
             if [ "${MISSING_CLOUD_BUILD_WRITER:-0}" = "1" ]; then
@@ -261,6 +290,28 @@ jobs:
           gcloud projects add-iam-policy-binding "$PROJECT_ID" \
             --member="serviceAccount:${APPENGINE_SA}" \
             --role="roles/datastore.user" || true
+
+      - name: Grant Firestore access to configured runtime SA(s)
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcloud config set project "$PROJECT_ID" >/dev/null
+          if [ -f firebase.json ]; then
+            LIST=$(node -e 'try{const f=require("./firebase.json");const s=new Set();for(const e of (f.functions||[])){if(e&&e.serviceAccountEmail)s.add(e.serviceAccountEmail)}if(process.env.FUNCTIONS_RUNTIME_SERVICE_ACCOUNT)s.add(process.env.FUNCTIONS_RUNTIME_SERVICE_ACCOUNT);console.log(JSON.stringify([...s]));}catch(e){console.log("[]");}')
+            echo "Configured runtime SA list: $LIST"
+            node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{for(const v of JSON.parse(s||"[]")){console.log(v)} }catch{}})' <<< "$LIST" | while read -r SA; do
+              [ -z "$SA" ] && continue
+              echo "Granting roles/datastore.user to $SA (best effort)"
+              gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+                --member="serviceAccount:${SA}" \
+                --role="roles/datastore.user" || true
+              echo "Granting Secret Manager accessor to $SA for SENTRY_DSN (best effort)"
+              gcloud secrets add-iam-policy-binding SENTRY_DSN \
+                --project "$PROJECT_ID" \
+                --member "serviceAccount:${SA}" \
+                --role roles/secretmanager.secretAccessor || true
+            done
+          fi
 
       - name: Grant Secret Manager access to deploy SA (for functions config resolution)
         shell: bash
@@ -352,6 +403,52 @@ jobs:
             --project "$PROJECT_ID" \
             --non-interactive \
             --debug
+
+      - name: Verify Firestore database exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcloud config set project "$PROJECT_ID" >/dev/null
+          TARGET_DB=${FIRESTORE_DATABASE_ID:-"(default)"}
+          echo "Checking for Firestore database: ${TARGET_DB}"
+          DBS=$(gcloud firestore databases list --format=json || true)
+          echo "$DBS" | head -c 1000 || true
+          if ! echo "$DBS" | grep -q '"name": ".*/databases/'"$TARGET_DB"'"'; then
+            echo "::warning title=Firestore database missing::Database '${TARGET_DB}' not found in project $PROJECT_ID. Ensure your code/config targets the correct database or create it." >&2
+            echo "To create (choose region appropriately):" >&2
+            echo "gcloud firestore databases create --database=${TARGET_DB} --location=us-central1" >&2
+          else
+            echo "Found Firestore database '${TARGET_DB}'."
+          fi
+
+      - name: Ensure runtime SAs for required callables have Firestore access
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcloud config set project "$PROJECT_ID" >/dev/null
+          REQUIRED=(createRegistration startRegistration confirmRegistration ensureUserProfile)
+          REGION="us-central1"
+          declare -A SA_MAP
+          for fn in "${REQUIRED[@]}"; do
+            SA=$(gcloud functions describe "$fn" --gen2 --region "$REGION" --format='value(serviceConfig.serviceAccountEmail)' 2>/dev/null || true)
+            if [ -z "$SA" ]; then
+              echo "WARN: Could not resolve runtime SA for $fn (function may not exist yet)."
+              continue
+            fi
+            echo "$fn => $SA"
+            SA_MAP["$SA"]=1
+          done
+          POLICY=$(gcloud projects get-iam-policy "$PROJECT_ID" --format=json)
+          for sa in "${!SA_MAP[@]}"; do
+            if echo "$POLICY" | grep -q '"roles/datastore.user"' && echo "$POLICY" | grep -q "serviceAccount:$sa"; then
+              echo "✓ $sa has roles/datastore.user"
+            else
+              echo "Granting roles/datastore.user to $sa (best effort)"
+              gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+                --member "serviceAccount:$sa" \
+                --role "roles/datastore.user" || true
+            fi
+          done
 
       - name: Verify required callables exist
         shell: bash

@@ -42,5 +42,5 @@ Notes:
 
 ## Notes
 
-- Firestore named database: code initializes Admin SDK with `getFirestore('kcm-db')`.
+- Firestore database: uses `FIRESTORE_DATABASE_ID` if set, otherwise the default database.
 - All functions run in `us-central1`.

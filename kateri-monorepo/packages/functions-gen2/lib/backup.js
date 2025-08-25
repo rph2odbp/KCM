@@ -28,8 +28,8 @@ exports.backupFirestoreDaily = (0, scheduler_1.onSchedule)({
         firebase_functions_1.logger.error('Missing project id in environment', { operationId });
         return;
     }
-    // Target the named Firestore database
-    const databaseId = 'kcm-db';
+    // Target the Firestore database: default unless explicitly configured
+    const databaseId = process.env.FIRESTORE_DATABASE_ID || '(default)';
     const databaseName = `projects/${projectId}/databases/${databaseId}`;
     // Choose bucket: prefer explicit env var; otherwise use a dedicated "-backups" bucket
     // (avoids appspot.com domain ownership constraints)
@@ -58,7 +58,8 @@ exports.backupFirestoreDaily = (0, scheduler_1.onSchedule)({
         firebase_functions_1.logger.info('Export triggered', { operationId, operation: res.data?.name });
     }
     catch (err) {
-        firebase_functions_1.logger.error('Export failed', { operationId, message: err?.message, stack: err?.stack });
+        const e = err;
+        firebase_functions_1.logger.error('Export failed', { operationId, message: e?.message, stack: e?.stack });
         throw err;
     }
 });

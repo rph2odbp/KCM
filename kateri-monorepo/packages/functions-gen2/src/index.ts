@@ -1,5 +1,6 @@
 import { logger } from 'firebase-functions'
 import { onRequest, onCall, HttpsError } from 'firebase-functions/v2/https'
+import { setGlobalOptions } from 'firebase-functions/v2'
 import { onSchedule } from 'firebase-functions/v2/scheduler'
 import { onDocumentUpdated } from 'firebase-functions/v2/firestore'
 import './admin'
@@ -23,6 +24,13 @@ ensureSentryInitialized()
 // admin + db are initialized in ./admin
 
 const corsHandler = cors({ origin: true })
+
+// Set a default runtime service account for all functions (can be overridden per-function)
+setGlobalOptions({
+  ...(process.env.FUNCTIONS_RUNTIME_SERVICE_ACCOUNT
+    ? { serviceAccount: process.env.FUNCTIONS_RUNTIME_SERVICE_ACCOUNT }
+    : { serviceAccount: 'github-deployer@kcm-firebase-b7d6a.iam.gserviceaccount.com' }),
+})
 
 export const helloWorld = onRequest(
   { region: 'us-central1', invoker: 'private', secrets: [SENTRY_DSN_SECRET] },
@@ -61,12 +69,17 @@ export const dailyHealthCheckV2 = onSchedule(
   },
 )
 
+const FUNCTIONS_SERVICE_ACCOUNT = process.env.FUNCTIONS_RUNTIME_SERVICE_ACCOUNT as
+  | string
+  | undefined
+
 export const onCamperUpdatedV2 = onDocumentUpdated(
   {
     region: 'us-central1',
     document: 'campers/{camperId}',
-    database: 'kcm-db',
+    database: process.env.FIRESTORE_DATABASE_ID || '(default)',
     secrets: [SENTRY_DSN_SECRET],
+    ...(FUNCTIONS_SERVICE_ACCOUNT ? { serviceAccount: FUNCTIONS_SERVICE_ACCOUNT } : {}),
   },
   async event => {
     try {

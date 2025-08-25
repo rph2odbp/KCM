@@ -2,6 +2,6 @@
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json",
-    "database": "kcm-db"
+    "database": "(default)"
   }
 }
