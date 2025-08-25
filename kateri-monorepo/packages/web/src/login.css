@@ -1,12 +1,12 @@
 /* Minimal, accessible, modern login styles */
 :root {
-  --bg: #0b132b;
+  --bg: #ffffff;
   --card: #ffffff;
   --text: #1f2937;
   --muted: #6b7280;
-  --primary: #0ea5e9;
-  --primary-600: #0284c7;
-  --ring: #bae6fd;
+  --primary: #0e5db8; /* dark blue accent */
+  --primary-600: #0b4a93;
+  --ring: #cfe3ff;
   --border: #e5e7eb;
   --danger: #dc2626;
 }
@@ -20,7 +20,7 @@ body,
 }
 body {
   margin: 0;
-  background: linear-gradient(135deg, #0b132b, #1c2541 40%, #3a506b);
+  background: #ffffff;
 }
 .auth-wrap {
   display: flex;

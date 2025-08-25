@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { collection, getDocs, query } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
 import { db, functions } from '../../firebase'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 
 type Gender = 'male' | 'female'
 
@@ -13,6 +14,8 @@ type SessionItem = {
 }
 
 export default function RegistrationStepper() {
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [step, setStep] = useState(1)
   const [year, setYear] = useState(new Date().getFullYear())
   const [gender, setGender] = useState<Gender>('male')
@@ -26,12 +29,27 @@ export default function RegistrationStepper() {
 
   const [status, setStatus] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [holdUntil, setHoldUntil] = useState<number | null>(null)
+  const [regId, setRegId] = useState<string | null>(null)
 
   const genderKey = gender === 'male' ? 'boys' : 'girls'
   const colRef = useMemo(
     () => collection(db, 'sessions', String(year), genderKey),
     [year, genderKey],
   )
+
+  // Prefill from query params: year, gender(boys/girls), sessionId
+  useEffect(() => {
+    const qpYear = parseInt(searchParams.get('year') || '')
+    if (!Number.isNaN(qpYear) && qpYear >= 2000) setYear(qpYear)
+    const qpGender = (searchParams.get('gender') || '').toLowerCase()
+    if (qpGender === 'boys') setGender('male')
+    else if (qpGender === 'girls') setGender('female')
+    const qpSession = searchParams.get('sessionId')
+    if (qpSession) setSessionId(qpSession)
+    // run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     const run = async () => {
@@ -51,12 +69,14 @@ export default function RegistrationStepper() {
           }
         })
         setSessions(items)
-        if (items.length > 0) setSessionId(items[0].id)
+        if (!sessionId && items.length > 0) setSessionId(items[0].id)
       } catch (e) {
         setStatus(`Failed to load sessions: ${(e as Error).message}`)
       }
     }
     void run()
+    // sessionId is intentionally not included to avoid resetting selection when it changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [colRef])
 
   const canNextFrom1 = year >= 2000 && sessions.length > 0 && !!sessionId
@@ -66,8 +86,11 @@ export default function RegistrationStepper() {
     setSubmitting(true)
     setStatus('Submitting...')
     try {
-      type Resp = { success: boolean; data?: { registrationId: string; camperId: string } }
-      const call = httpsCallable<Record<string, unknown>, Resp>(functions, 'createRegistration')
+      type StartResp = {
+        success: boolean
+        data?: { registrationId: string; camperId: string; holdExpiresAt?: string; status: string }
+      }
+      const call = httpsCallable<Record<string, unknown>, StartResp>(functions, 'startRegistration')
       const res = await call({
         year,
         sessionId,
@@ -80,8 +103,54 @@ export default function RegistrationStepper() {
         },
       })
       const data = res.data?.data
-      setStatus(data ? `Success: ${data.registrationId}` : 'Success')
-      setStep(3)
+      if (!data) throw new Error('No response data')
+      if (data.status === 'WAITLIST') {
+        setStatus('Session is full; you have been routed to the waitlist flow.')
+        setStep(3)
+        return
+      }
+      if (!data.registrationId) throw new Error('Failed to create registration')
+      setRegId(data.registrationId)
+      if (data.holdExpiresAt) setHoldUntil(new Date(data.holdExpiresAt).getTime())
+      setStatus('Seat held. Complete the basics and confirm with deposit to keep it.')
+      setStep(2)
+    } catch (e) {
+      setStatus(`Error: ${(e as Error).message}`)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const [now, setNow] = useState(Date.now())
+  useEffect(() => {
+    if (!holdUntil) return
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [holdUntil])
+
+  const secondsLeft = holdUntil ? Math.max(0, Math.floor((holdUntil - now) / 1000)) : null
+
+  const confirm = async () => {
+    if (!regId) return
+    setSubmitting(true)
+    setStatus('Confirming...')
+    try {
+      const gKey = gender === 'male' ? 'boys' : 'girls'
+      const call = httpsCallable<Record<string, unknown>, { ok: boolean }>(
+        functions,
+        'confirmRegistration',
+      )
+      const res = await call({
+        year,
+        gender: gKey,
+        sessionId,
+        registrationId: regId,
+        depositSuccess: true,
+      })
+      if (!res.data?.ok) throw new Error('Confirmation failed')
+      navigate(`/parent/registration/${year}/${gKey}/${encodeURIComponent(sessionId)}/${regId}`, {
+        state: { justCreated: true },
+      })
     } catch (e) {
       setStatus(`Error: ${(e as Error).message}`)
     } finally {
@@ -138,6 +207,12 @@ export default function RegistrationStepper() {
 
       {step === 2 && (
         <div style={{ display: 'grid', gap: 8 }}>
+          {secondsLeft !== null && (
+            <div style={{ padding: 8, background: '#fff7ed', border: '1px solid #f59e0b' }}>
+              Seat held for {Math.floor(secondsLeft / 60)}:
+              {String(secondsLeft % 60).padStart(2, '0')} minutes. Complete and confirm to keep it.
+            </div>
+          )}
           <label>
             Camper First Name
             <input value={firstName} onChange={e => setFirstName(e.target.value)} />
@@ -162,9 +237,15 @@ export default function RegistrationStepper() {
           </label>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={() => setStep(1)}>Back</button>
-            <button disabled={!canNextFrom2 || submitting} onClick={submit}>
-              Submit
-            </button>
+            {!regId ? (
+              <button disabled={!canNextFrom2 || submitting} onClick={submit}>
+                Hold seat
+              </button>
+            ) : (
+              <button disabled={submitting} onClick={confirm}>
+                Confirm (mock deposit)
+              </button>
+            )}
           </div>
           <div aria-live="polite">{status}</div>
         </div>

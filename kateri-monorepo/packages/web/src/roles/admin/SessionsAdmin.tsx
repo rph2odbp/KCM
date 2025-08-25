@@ -117,27 +117,34 @@ export default function SessionsAdmin() {
       // Production / hosted: use SDK first
       try {
         const snap = await getDocs(query(colRef))
-        setSessions(
-          snap.docs.map(d => {
-            const data = d.data() as Partial<SessionDoc>
-            return {
-              id: d.id,
-              year: Number(data.year ?? 0),
-              name: String(data.name ?? ''),
-              gender: (data.gender as Gender) ?? 'boys',
-              startDate: String(data.startDate ?? ''),
-              endDate: String(data.endDate ?? ''),
-              capacity: Number(data.capacity ?? 0),
-              price: data.price !== undefined ? Number(data.price) : undefined,
-              waitlistOpen: data.waitlistOpen,
-            }
-          }),
+        const items = snap.docs.map(d => {
+          const data = d.data() as Partial<SessionDoc>
+          return {
+            id: d.id,
+            year: Number(data.year ?? 0),
+            name: String(data.name ?? ''),
+            gender: (data.gender as Gender) ?? 'boys',
+            startDate: String(data.startDate ?? ''),
+            endDate: String(data.endDate ?? ''),
+            capacity: Number(data.capacity ?? 0),
+            price: data.price !== undefined ? Number(data.price) : undefined,
+            waitlistOpen: data.waitlistOpen,
+          }
+        })
+        // Sort by start date then id for stable order
+        items.sort(
+          (a, b) =>
+            (a.startDate || '').localeCompare(b.startDate || '') || a.id.localeCompare(b.id),
         )
+        setSessions(items)
         return
       } catch (sdkErr) {
         console.warn('[sessions-admin] SDK list failed, falling back to REST proxy', sdkErr)
       }
       const viaProxy = await restList()
+      viaProxy.sort(
+        (a, b) => (a.startDate || '').localeCompare(b.startDate || '') || a.id.localeCompare(b.id),
+      )
       setSessions(viaProxy)
       return
     } catch (e) {
@@ -186,6 +193,8 @@ export default function SessionsAdmin() {
         </button>
         <span aria-live="polite">{status}</span>
       </div>
+
+      {/* Seed helpers removed: sessions already created for 2026 */}
 
       <NewOrEditSession
         year={year}
@@ -345,6 +354,12 @@ function NewOrEditSession({
         }
       }
 
+      // Prevent accidental overwrite: check existence first
+      const existing = await (await import('firebase/firestore')).getDoc(d)
+      if (existing.exists()) {
+        setMsg(`A session with id "${id}" already exists`)
+        return
+      }
       try {
         await setDoc(d, payload)
       } catch (sdkErr) {

@@ -237,8 +237,10 @@ jobs:
           echo "Checking that required callable functions are deployed..."
           OUT=$(yarn dlx firebase-tools@13.29.0 functions:list --project "$PROJECT_ID" --json)
           echo "$OUT" | head -c 2000 || true
+          echo "$OUT" | grep -q 'createRegistration' || { echo 'createRegistration missing after deploy'; exit 1; }
           echo "$OUT" | grep -q 'startRegistration' || { echo 'startRegistration missing after deploy'; exit 1; }
           echo "$OUT" | grep -q 'confirmRegistration' || { echo 'confirmRegistration missing after deploy'; exit 1; }
+          echo "$OUT" | grep -q 'ensureUserProfile' || { echo 'ensureUserProfile missing after deploy'; exit 1; }
           echo "All required callables present."
 
       - name: List deployed functions
@@ -273,4 +275,18 @@ jobs:
         run: |
           yarn dlx firebase-tools@13.29.0 functions:log \
             --only confirmRegistration \
+            --project "$PROJECT_ID" || true
+
+      - name: Tail logs for createRegistration (Gen2)
+        if: always()
+        run: |
+          yarn dlx firebase-tools@13.29.0 functions:log \
+            --only createRegistration \
+            --project "$PROJECT_ID" || true
+
+      - name: Tail logs for ensureUserProfile (Gen2)
+        if: always()
+        run: |
+          yarn dlx firebase-tools@13.29.0 functions:log \
+            --only ensureUserProfile \
             --project "$PROJECT_ID" || true

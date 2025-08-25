@@ -7,7 +7,15 @@ import { db } from './admin'
 import { FieldValue } from 'firebase-admin/firestore'
 import cors from 'cors'
 import { SENTRY_DSN_SECRET, ensureSentryInitialized, captureException } from './sentry'
-export { createRegistration } from './register'
+export {
+  createRegistration,
+  startRegistration,
+  confirmRegistration,
+  releaseExpiredHolds,
+  sweepExpiredHoldsV2,
+  ensureSessionCountersDaily,
+  getSessionHoldsSummary,
+} from './register'
 
 // Initialize Sentry lazily (env or secret)
 ensureSentryInitialized()

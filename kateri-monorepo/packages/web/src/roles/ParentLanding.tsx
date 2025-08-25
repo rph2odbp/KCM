@@ -1,174 +1,234 @@
-import { httpsCallable } from 'firebase/functions'
-import { functions, db, app } from '../firebase'
-import { useEffect, useMemo, useState } from 'react'
-import { collection, getDocs, query, getFirestore } from 'firebase/firestore'
-import { Link, Routes, Route } from 'react-router-dom'
-import RegistrationStepper from './parent/RegistrationStepper'
+import { db } from '../firebase'
+import { useEffect, useState } from 'react'
+import { collection, collectionGroup, getDocs, query, where } from 'firebase/firestore'
+import { Link } from 'react-router-dom'
+import { useAuth } from '../auth'
+// Registration routes are handled at the app level
 
 export default function ParentLanding() {
   return (
     <section>
       <h2>Parent Portal</h2>
-      <p>Welcome to the parent portal. Register your camper for a session below.</p>
-      <nav style={{ marginBottom: 12 }}>
-        <Link to="register">New Registration (Stepper)</Link>
+      <p>Welcome to the parent portal. Browse sessions, register, and manage your registrations.</p>
+      <nav style={{ marginBottom: 12, display: 'flex', gap: 12 }}>
+        <Link to="/parent/register">Start a new registration</Link>
       </nav>
-      <Routes>
-        <Route path="register" element={<RegistrationStepper />} />
-      </Routes>
-      <ParentRegistration />
+      <SessionsList />
+      <ManageRegistrations />
+      {/* Nested registration routes removed; handled at app-level for a dedicated page */}
     </section>
   )
 }
 
-function ParentRegistration() {
+function SessionsList() {
   const [year, setYear] = useState(new Date().getFullYear())
-  const [gender, setGender] = useState<'male' | 'female'>('male')
-  const [sessions, setSessions] = useState<
-    { id: string; name: string; startDate: string; endDate: string }[]
-  >([])
-  const [selected, setSelected] = useState<string>('')
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [dob, setDob] = useState('')
-  const [grade, setGrade] = useState(2)
-  const [status, setStatus] = useState<string>('')
-
-  const currentYear = new Date().getFullYear()
-  const genderKey = gender === 'male' ? 'boys' : 'girls'
-  const colRef = useMemo(
-    () => collection(db, 'sessions', String(year), genderKey),
-    [year, genderKey],
-  )
+  const [status, setStatus] = useState('')
+  type Gender = 'boys' | 'girls'
+  type Row = {
+    id: string
+    name: string
+    gender: Gender
+    startDate: string
+    endDate: string
+    capacity: number
+    price?: number
+    confirmed: number
+    holding: number
+  }
+  const [rows, setRows] = useState<Row[]>([])
 
   useEffect(() => {
     const run = async () => {
+      setStatus('Loading…')
       try {
-        const snap = await getDocs(query(colRef))
-        let items = snap.docs.map(d => {
-          const data = d.data() as unknown
-          const s = data as Partial<{ name: string; startDate: string; endDate: string }>
-          return {
-            id: d.id,
-            name: String(s.name ?? d.id),
-            startDate: String(s.startDate ?? ''),
-            endDate: String(s.endDate ?? ''),
-          }
-        })
-        if (items.length === 0) {
-          // Fallback: attempt to read from the default database in case seeding went there
-          const altCol = collection(getFirestore(app), 'sessions', String(year), genderKey)
-          const altSnap = await getDocs(query(altCol))
-          items = altSnap.docs.map(d => {
-            const data = d.data() as unknown
-            const s = data as Partial<{ name: string; startDate: string; endDate: string }>
-            return {
+        const genders: Gender[] = ['boys', 'girls']
+        // Fetch both genders in parallel to reduce latency
+        const snaps = await Promise.all(
+          genders.map(g => getDocs(query(collection(db, 'sessions', String(year), g)))),
+        )
+        const all: Row[] = []
+        snaps.forEach((snap, idx) => {
+          const g = genders[idx]
+          snap.docs.forEach(d => {
+            const s = d.data() as Partial<{
+              name: string
+              startDate: string
+              endDate: string
+              capacity: number
+              price?: number
+              confirmedCount?: number
+              holdCount?: number
+            }>
+            all.push({
               id: d.id,
               name: String(s.name ?? d.id),
+              gender: g,
               startDate: String(s.startDate ?? ''),
               endDate: String(s.endDate ?? ''),
-            }
+              capacity: Number(s.capacity ?? 0),
+              price: s.price !== undefined ? Number(s.price) : undefined,
+              confirmed: Number(s.confirmedCount ?? 0),
+              holding: Number(s.holdCount ?? 0),
+            })
           })
-        }
-        setSessions(items)
-        if (items.length > 0) {
-          setSelected(items[0].id)
-        } else if (year === currentYear) {
-          // If no sessions for current year, try next year automatically
-          setYear(currentYear + 1)
-        } else {
-          setSelected('')
-        }
+        })
+        all.sort(
+          (a, b) =>
+            (a.startDate || '').localeCompare(b.startDate || '') || a.id.localeCompare(b.id),
+        )
+        setRows(all)
+        setStatus('')
       } catch (e) {
         setStatus(`Failed to load sessions: ${(e as Error).message}`)
       }
     }
     void run()
-  }, [colRef, year, currentYear, genderKey])
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setStatus('Submitting...')
-    try {
-      type CreateRegResponse = {
-        success: boolean
-        data?: { registrationId: string; camperId: string }
-      }
-      const call = httpsCallable<Record<string, unknown>, CreateRegResponse>(
-        functions,
-        'createRegistration',
-      )
-      const res = await call({
-        year,
-        sessionId: selected,
-        camper: {
-          firstName,
-          lastName,
-          dateOfBirth: dob,
-          gender,
-          gradeCompleted: grade,
-        },
-      })
-      const data = res.data?.data
-      setStatus(data ? `Success: ${data.registrationId}` : 'Success')
-    } catch (err) {
-      setStatus(`Error: ${(err as Error).message}`)
-    }
-  }
+  }, [year])
 
   return (
-    <form onSubmit={submit} style={{ display: 'grid', gap: 8, maxWidth: 420 }}>
-      <label>
-        Year
-        <input type="number" value={year} onChange={e => setYear(parseInt(e.target.value))} />
-      </label>
-      <label>
-        Session
-        <select value={selected} onChange={e => setSelected(e.target.value)}>
-          {sessions.length === 0 && (
-            <option value="" disabled>
-              No sessions available
-            </option>
-          )}
-          {sessions.map(s => (
-            <option key={s.id} value={s.id}>
-              {s.name} ({s.startDate} → {s.endDate})
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        Camper First Name
-        <input value={firstName} onChange={e => setFirstName(e.target.value)} required />
-      </label>
-      <label>
-        Camper Last Name
-        <input value={lastName} onChange={e => setLastName(e.target.value)} required />
-      </label>
-      <label>
-        Date of Birth
-        <input type="date" value={dob} onChange={e => setDob(e.target.value)} required />
-      </label>
-      <label>
-        Gender
-        <select value={gender} onChange={e => setGender(e.target.value as 'male' | 'female')}>
-          <option value="male">Boy</option>
-          <option value="female">Girl</option>
-        </select>
-      </label>
-      <label>
-        Grade Completed (2-8)
-        <input
-          type="number"
-          min={2}
-          max={8}
-          value={grade}
-          onChange={e => setGrade(parseInt(e.target.value))}
-          required
-        />
-      </label>
-      <button type="submit">Create Registration</button>
-      <div aria-live="polite">{status}</div>
-    </form>
+    <section style={{ marginTop: 12 }}>
+      <h3>Sessions</h3>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 8 }}>
+        <label>
+          Year
+          <input
+            type="number"
+            value={year}
+            onChange={e => setYear(parseInt(e.target.value))}
+            style={{ marginLeft: 6 }}
+          />
+        </label>
+        <span aria-live="polite">{status}</span>
+      </div>
+      <table style={{ width: '100%', maxWidth: 860 }}>
+        <thead>
+          <tr>
+            <th>Session</th>
+            <th>Dates</th>
+            <th>Spots Left</th>
+            <th>Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(r => {
+            // Spots left accounts for both confirmed and active holds
+            const spotsLeft = Math.max(0, r.capacity - (r.confirmed + r.holding))
+            return (
+              <tr key={`${r.gender}-${r.id}`}>
+                <td>
+                  {r.name} ({r.gender})
+                </td>
+                <td>
+                  {r.startDate} → {r.endDate}
+                </td>
+                <td>{spotsLeft}</td>
+                <td>{r.price ?? 0}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </section>
+  )
+}
+
+function ManageRegistrations() {
+  const { user } = useAuth()
+  const [items, setItems] = useState<
+    Array<{
+      id: string
+      year: number
+      gender: 'boys' | 'girls'
+      sessionId: string
+      camperId: string
+      status: string
+      missing?: Record<string, string[]>
+    }>
+  >([])
+  const [status, setStatus] = useState('')
+
+  useEffect(() => {
+    const run = async () => {
+      if (!user) return
+      setStatus('')
+      try {
+        const cg = collectionGroup(db, 'registrations')
+        const qy = query(cg, where('parentId', '==', user.uid))
+        const snap = await getDocs(qy)
+        const rows = snap.docs.map(d => {
+          const data = d.data() as Partial<{
+            year: number
+            gender: 'boys' | 'girls'
+            sessionId: string
+            camperId: string
+            status: string
+            missing?: Record<string, string[]>
+          }>
+          return {
+            id: d.id,
+            year: Number(data.year ?? 0),
+            gender: (data.gender as 'boys' | 'girls') || 'boys',
+            sessionId: String(data.sessionId ?? ''),
+            camperId: String(data.camperId ?? ''),
+            status: String(data.status ?? ''),
+            missing: (data.missing as Record<string, string[]>) || undefined,
+          }
+        })
+        setItems(rows)
+      } catch (e) {
+        setStatus(`Failed to load registrations: ${(e as Error).message}`)
+      }
+    }
+    void run()
+  }, [user])
+
+  return (
+    <section style={{ marginTop: 16 }}>
+      <h3>Manage Registrations</h3>
+      <div aria-live="polite" style={{ marginBottom: 8 }}>
+        {status}
+      </div>
+      <table style={{ width: '100%', maxWidth: 980 }}>
+        <thead>
+          <tr>
+            <th>Year</th>
+            <th>Gender</th>
+            <th>Session</th>
+            <th>Camper</th>
+            <th>Status</th>
+            <th>Missing</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map(r => {
+            const resumeHref = `/parent/registration/${r.year}/${r.gender}/${encodeURIComponent(
+              r.sessionId,
+            )}/${r.id}`
+            return (
+              <tr key={r.id}>
+                <td>{r.year}</td>
+                <td>{r.gender}</td>
+                <td>
+                  <Link to={resumeHref}>{r.sessionId}</Link>
+                </td>
+                <td>{r.camperId}</td>
+                <td>{r.status}</td>
+                <td>
+                  {r.missing
+                    ? Object.entries(r.missing)
+                        .map(([k, v]) => `${k}: ${v.join(', ')}`)
+                        .join(' | ')
+                    : ''}
+                </td>
+                <td>
+                  <Link to={resumeHref}>Resume</Link>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </section>
   )
 }

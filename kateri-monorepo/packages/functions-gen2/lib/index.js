@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ensureUserProfile = exports.backupFirestoreDaily = exports.cleanupDeletedUsersDaily = exports.onCamperUpdatedV2 = exports.dailyHealthCheckV2 = exports.helloWorld = exports.createRegistration = void 0;
+exports.ensureUserProfile = exports.backupFirestoreDaily = exports.cleanupDeletedUsersDaily = exports.onCamperUpdatedV2 = exports.dailyHealthCheckV2 = exports.helloWorld = exports.getSessionHoldsSummary = exports.ensureSessionCountersDaily = exports.sweepExpiredHoldsV2 = exports.releaseExpiredHolds = exports.confirmRegistration = exports.startRegistration = exports.createRegistration = void 0;
 const firebase_functions_1 = require("firebase-functions");
 const https_1 = require("firebase-functions/v2/https");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
@@ -15,6 +15,12 @@ const cors_1 = __importDefault(require("cors"));
 const sentry_1 = require("./sentry");
 var register_1 = require("./register");
 Object.defineProperty(exports, "createRegistration", { enumerable: true, get: function () { return register_1.createRegistration; } });
+Object.defineProperty(exports, "startRegistration", { enumerable: true, get: function () { return register_1.startRegistration; } });
+Object.defineProperty(exports, "confirmRegistration", { enumerable: true, get: function () { return register_1.confirmRegistration; } });
+Object.defineProperty(exports, "releaseExpiredHolds", { enumerable: true, get: function () { return register_1.releaseExpiredHolds; } });
+Object.defineProperty(exports, "sweepExpiredHoldsV2", { enumerable: true, get: function () { return register_1.sweepExpiredHoldsV2; } });
+Object.defineProperty(exports, "ensureSessionCountersDaily", { enumerable: true, get: function () { return register_1.ensureSessionCountersDaily; } });
+Object.defineProperty(exports, "getSessionHoldsSummary", { enumerable: true, get: function () { return register_1.getSessionHoldsSummary; } });
 // Initialize Sentry lazily (env or secret)
 (0, sentry_1.ensureSentryInitialized)();
 // admin + db are initialized in ./admin
