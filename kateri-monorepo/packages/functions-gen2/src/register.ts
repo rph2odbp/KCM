@@ -152,6 +152,10 @@ export const startRegistration = onCall<StartRegistrationInput>(
         .doc(String(year))
         .collection(genderKey)
         .doc(sessionId)
+      logger.info('startRegistration target', {
+        databaseId: process.env.FIRESTORE_DATABASE_ID || '(default)',
+        path: `sessions/${String(year)}/${genderKey}/${sessionId}`,
+      })
       const regsCol = sessionRef.collection('registrations')
       const holdsCol = sessionRef.collection('holds')
 

@@ -125,6 +125,10 @@ exports.startRegistration = (0, https_1.onCall)({ region: 'us-central1', invoker
             .doc(String(year))
             .collection(genderKey)
             .doc(sessionId);
+        firebase_functions_1.logger.info('startRegistration target', {
+            databaseId: process.env.FIRESTORE_DATABASE_ID || '(default)',
+            path: `sessions/${String(year)}/${genderKey}/${sessionId}`,
+        });
         const regsCol = sessionRef.collection('registrations');
         const holdsCol = sessionRef.collection('holds');
         // ensure camper exists
