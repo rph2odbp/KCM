@@ -77,23 +77,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user || disableAuthFlag) return
     const ref = doc(db, 'users', user.uid)
     let wroteDefault = false
+    // Ensure profile creation with retry/backoff to handle transient failures
+    const ensureProfile = async () => {
+      const baseDoc = {
+        email: user.email || '',
+        displayName: user.displayName || '',
+        roles: ['parent', 'staff'],
+      }
+      let delay = 250
+      for (let attempt = 1; attempt <= 4; attempt++) {
+        try {
+          await setDoc(ref, baseDoc, { merge: true })
+          console.info('[KCM] Ensured user profile (attempt', attempt, ')')
+          return
+        } catch (e) {
+          if (attempt === 4) {
+            console.warn('Failed to ensure user profile after retries', e)
+            return
+          }
+          await new Promise(res => setTimeout(res, delay))
+          delay *= 2
+        }
+      }
+    }
     const unsub = onSnapshot(
       ref,
       async snap => {
         if (!snap.exists() && !wroteDefault) {
           // First sign-in (any provider): bootstrap a minimal profile with default roles
           wroteDefault = true
-          try {
-            await setDoc(ref, {
-              email: user.email || '',
-              displayName: user.displayName || '',
-              roles: ['parent', 'staff'],
-            })
-            console.info('[KCM] Created default user profile with roles [parent, staff]')
-            return
-          } catch (e) {
-            console.warn('Failed to create default user profile', e)
-          }
+          await ensureProfile()
+          return
         }
         const data = snap.data() || {}
         const r = Array.isArray(data.roles) ? data.roles : []
@@ -132,7 +146,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await import('firebase/firestore').then(async ({ doc, setDoc }) => {
         const ref = doc(db, 'users', cred.user.uid)
-        await setDoc(ref, { email, displayName: '', roles: ['parent', 'staff'] })
+        let delay = 250
+        for (let attempt = 1; attempt <= 4; attempt++) {
+          try {
+            await setDoc(
+              ref,
+              { email, displayName: '', roles: ['parent', 'staff'] },
+              { merge: true },
+            )
+            console.info('[KCM] Created user profile after register (attempt', attempt, ')')
+            break
+          } catch (e) {
+            if (attempt === 4) {
+              console.warn('Failed to create user profile after register', e)
+              break
+            }
+            await new Promise(res => setTimeout(res, delay))
+            delay *= 2
+          }
+        }
       })
     } catch (err) {
       console.warn('Failed to create user profile after register', err)
