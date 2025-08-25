@@ -544,18 +544,6 @@ jobs:
             --only ensureUserProfile \
             --project "$PROJECT_ID" || true
 
-      - name: Mint ID token for health check
-        if: always()
-        id: mint_idt
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ env.GCP_SERVICE_ACCOUNT_EMAIL }}
-          project_id: ${{ env.PROJECT_ID }}
-          token_format: "id_token"
-          audience: https://us-central1-${{ env.PROJECT_ID }}.cloudfunctions.net/registrationEnvHealthz
-          create_credentials_file: false
-
       - name: Registration env health check (private)
         if: always()
         shell: bash
@@ -563,11 +551,8 @@ jobs:
           set -euo pipefail
           URL="https://us-central1-${PROJECT_ID}.cloudfunctions.net/registrationEnvHealthz"
           echo "Calling ${URL} with identity token"
-          IDT="${{ steps.mint_idt.outputs.id_token }}"
-          if [ -z "$IDT" ]; then
-            echo "No id_token from action; attempting gcloud fallback"
-            IDT=$(gcloud auth print-identity-token --audiences="$URL" 2>/dev/null || true)
-          fi
+          # Mint ID token using gcloud (WIF ADC already configured above)
+          IDT=$(gcloud auth print-identity-token --audiences="$URL" 2>/dev/null || true)
           if [ -z "$IDT" ]; then
             echo "WARN: Could not mint identity token; skipping health check."
             exit 0
