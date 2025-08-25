@@ -140,7 +140,7 @@ jobs:
           # Collect any explicitly configured runtime SAs from firebase.json and env
           CONFIGURED_SAS=()
           if [ -f firebase.json ]; then
-            MAP=$(node -e 'try{const f=require("./firebase.json");const s=new Set();for(const e of (f.functions||[])){if(e&&e.serviceAccountEmail)s.add(e.serviceAccountEmail)}if(process.env.FUNCTIONS_RUNTIME_SERVICE_ACCOUNT)s.add(process.env.FUNCTIONS_RUNTIME_SERVICE_ACCOUNT);console.log(JSON.stringify([...s]));}catch(e){console.error("[]")}')
+            MAP=$(node -e 'try{const f=require("./firebase.json");const s=new Set();for(const e of (f.functions||[])){if(e&&e.environmentVariables&&e.environmentVariables.FUNCTIONS_RUNTIME_SERVICE_ACCOUNT){s.add(e.environmentVariables.FUNCTIONS_RUNTIME_SERVICE_ACCOUNT)}}if(process.env.FUNCTIONS_RUNTIME_SERVICE_ACCOUNT)s.add(process.env.FUNCTIONS_RUNTIME_SERVICE_ACCOUNT);console.log(JSON.stringify([...s]));}catch(e){console.error("[]")}')
             # shellcheck disable=SC2207
             CONFIGURED_SAS=($(echo "$MAP" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{for(const v of JSON.parse(s||"[]")){console.log(v)}}catch{}})'))
           fi
