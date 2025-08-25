@@ -57,8 +57,10 @@ setPersistence(auth, browserLocalPersistence).catch(() => {
   /* ignore envs that don't support persistence */
 })
 export const projectId = getEnv('VITE_FIREBASE_PROJECT_ID')!
-export const databaseId = getEnv('VITE_FIRESTORE_DATABASE_ID') || 'kcm-db'
-const dbInstance = getFirestore(app, databaseId)
+const envDatabaseId = getEnv('VITE_FIRESTORE_DATABASE_ID')
+const useDefaultDb = !envDatabaseId || envDatabaseId === '(default)'
+export const databaseId = useDefaultDb ? '(default)' : envDatabaseId
+const dbInstance = useDefaultDb ? getFirestore(app) : getFirestore(app, envDatabaseId!)
 // Allow region override via env (defaults to us-central1). Do NOT use custom origin in production.
 const functionsRegion = getEnv('VITE_FIREBASE_FUNCTIONS_REGION') || 'us-central1'
 export const functions = getFunctions(app, functionsRegion)
@@ -73,6 +75,7 @@ try {
   console.info('[KCM] Firebase project:', projectId, 'appId:', getEnv('VITE_FIREBASE_APP_ID'))
   console.info('[KCM] Firebase apiKey:', safeKey, 'placeholder:', CONFIG_PLACEHOLDER)
   console.info('[KCM] Functions region:', functionsRegion)
+  console.info('[KCM] Firestore databaseId:', databaseId)
 } catch {
   // ignore
 }

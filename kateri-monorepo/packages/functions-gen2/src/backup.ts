@@ -19,9 +19,9 @@ export const backupFirestoreDaily = onSchedule(
     secrets: [SENTRY_DSN_SECRET],
     // Optional: run as a dedicated SA for least privilege if provided via env
     serviceAccount:
-      (process.env.FIRESTORE_BACKUP_SERVICE_ACCOUNT as any) ||
+      (process.env.FIRESTORE_BACKUP_SERVICE_ACCOUNT as string | undefined) ||
       // default to the dedicated backup SA created for this project
-      (`kcm-backup@${process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com` as any),
+      (`kcm-backup@${process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com` as string),
   },
   async () => {
     const operationId = ts()
@@ -31,8 +31,8 @@ export const backupFirestoreDaily = onSchedule(
       return
     }
 
-    // Target the named Firestore database
-    const databaseId = 'kcm-db'
+    // Target the Firestore database: default unless explicitly configured
+    const databaseId = process.env.FIRESTORE_DATABASE_ID || '(default)'
     const databaseName = `projects/${projectId}/databases/${databaseId}`
 
     // Choose bucket: prefer explicit env var; otherwise use a dedicated "-backups" bucket
@@ -64,8 +64,9 @@ export const backupFirestoreDaily = onSchedule(
       })
 
       logger.info('Export triggered', { operationId, operation: res.data?.name })
-    } catch (err: any) {
-      logger.error('Export failed', { operationId, message: err?.message, stack: err?.stack })
+    } catch (err: unknown) {
+      const e = err as { message?: string; stack?: string }
+      logger.error('Export failed', { operationId, message: e?.message, stack: e?.stack })
       throw err
     }
   },
