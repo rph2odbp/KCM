@@ -1,7 +1,8 @@
 import { db } from '../firebase'
 import { useEffect, useState } from 'react'
-import { collection, collectionGroup, getDocs, query, where } from 'firebase/firestore'
-import { getFunctions, httpsCallable } from 'firebase/functions'
+import { collection, getDocs, query } from 'firebase/firestore'
+import { httpsCallable } from 'firebase/functions'
+import { functions } from '../firebase'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth'
 // Registration routes are handled at the app level
@@ -151,15 +152,14 @@ function ManageRegistrations() {
   useEffect(() => {
     const run = async () => {
       if (!user) return
-      setStatus('')
+      setStatus('Loading registrations…')
       try {
-        console.info('[KCM] ManageRegistrations: querying for user', user.uid)
-        const cg = collectionGroup(db, 'registrations')
-        const qy = query(cg, where('parentId', '==', user.uid))
-        const snap = await getDocs(qy)
-        console.info('[KCM] ManageRegistrations: found registrations', snap.size)
-        const rows = snap.docs.map((d: { id: string; data: () => unknown }) => {
-          const data = d.data() as Partial<{
+        // Server-side callable (best practice for user-owned lists)
+        const fn = httpsCallable(functions, 'listMyRegistrations')
+        const resp = (await fn({})) as unknown as { data?: { ok: boolean; data?: any[] } }
+        if (resp?.data?.ok) {
+          const serverRows = (resp.data.data || []) as Array<{
+            id: string
             year: number
             gender: 'boys' | 'girls'
             sessionId: string
@@ -167,34 +167,16 @@ function ManageRegistrations() {
             status: string
             missing?: Record<string, string[]>
           }>
-          return {
-            id: d.id,
-            year: Number(data.year ?? 0),
-            gender: (data.gender as 'boys' | 'girls') || 'boys',
-            sessionId: String(data.sessionId ?? ''),
-            camperId: String(data.camperId ?? ''),
-            status: String(data.status ?? ''),
-            missing: (data.missing as Record<string, string[]>) || undefined,
-          }
-        })
-        setItems(rows)
+          setItems(serverRows)
+          setStatus('')
+          return
+        }
+        setItems([])
+        setStatus('')
       } catch (e) {
         const err = e as Error & { code?: string }
         console.warn('[KCM] ManageRegistrations error', err)
         const code = (err as any)?.code || (err as any)?.name || ''
-        if (code === 'permission-denied' || code === 'PERMISSION_DENIED') {
-          try {
-            const fn = httpsCallable(getFunctions(), 'listMyRegistrations')
-            const resp = (await fn({})) as unknown as { data?: { ok: boolean; data?: any[] } }
-            if (resp?.data?.ok) {
-              setItems(resp.data.data || [])
-              setStatus('')
-              return
-            }
-          } catch (fallbackErr) {
-            console.warn('[KCM] listMyRegistrations fallback failed', fallbackErr)
-          }
-        }
         setStatus(`Failed to load registrations: ${err.message}${code ? ` (code: ${code})` : ''}`)
       }
     }
