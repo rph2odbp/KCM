@@ -183,7 +183,15 @@ export const startRegistration = onCall<StartRegistrationInput>(
 
       const result = await db.runTransaction(async tx => {
         const sSnap = await tx.get(sessionRef)
-        if (!sSnap.exists) throw new HttpsError('not-found', 'SESSION_NOT_FOUND')
+        if (!sSnap.exists) {
+          logger.warn('SESSION_NOT_FOUND', {
+            year,
+            gender: genderKey,
+            sessionId,
+            databaseId: process.env.FIRESTORE_DATABASE_ID || '(default)',
+          })
+          throw new HttpsError('not-found', 'SESSION_NOT_FOUND')
+        }
         const sData = (sSnap.data() || {}) as {
           capacity?: number
           waitlistOpen?: boolean

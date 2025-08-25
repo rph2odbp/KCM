@@ -47,6 +47,23 @@ export default function RegistrationStepper() {
     else if (qpGender === 'girls') setGender('female')
     const qpSession = searchParams.get('sessionId')
     if (qpSession) setSessionId(qpSession)
+    // If no explicit year provided, pick the latest available year from Firestore
+    if (Number.isNaN(qpYear)) {
+      ;(async () => {
+        try {
+          const yearsSnap = await (
+            await import('firebase/firestore')
+          ).getDocs((await import('firebase/firestore')).collection(db, 'sessions'))
+          const years = yearsSnap.docs
+            .map(d => parseInt(d.id, 10))
+            .filter(n => !Number.isNaN(n))
+            .sort((a, b) => b - a)
+          if (years.length > 0) setYear(years[0])
+        } catch {
+          /* ignore */
+        }
+      })()
+    }
     // run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

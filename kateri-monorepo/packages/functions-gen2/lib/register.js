@@ -154,8 +154,15 @@ exports.startRegistration = (0, https_1.onCall)({ region: 'us-central1', invoker
         }
         const result = await admin_1.db.runTransaction(async (tx) => {
             const sSnap = await tx.get(sessionRef);
-            if (!sSnap.exists)
+            if (!sSnap.exists) {
+                firebase_functions_1.logger.warn('SESSION_NOT_FOUND', {
+                    year,
+                    gender: genderKey,
+                    sessionId,
+                    databaseId: process.env.FIRESTORE_DATABASE_ID || '(default)',
+                });
                 throw new https_1.HttpsError('not-found', 'SESSION_NOT_FOUND');
+            }
             const sData = (sSnap.data() || {});
             const capacity = Number(sData.capacity ?? 0);
             const waitlistOpen = Boolean(sData.waitlistOpen ?? true);
