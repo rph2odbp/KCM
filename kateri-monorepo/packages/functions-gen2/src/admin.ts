@@ -6,7 +6,7 @@ if (admin.apps.length === 0) {
 }
 
 const app = admin.app()
-const databaseId = process.env.FIRESTORE_DATABASE_ID
-export const databaseIdInUse = databaseId ?? '(default)'
-export const db = databaseId ? getFirestore(app, databaseId) : getFirestore(app)
+const databaseId = process.env.FIRESTORE_DATABASE_ID || 'kcm-db'
+export const databaseIdInUse = databaseId
+export const db = getFirestore(app, databaseId)
 export { admin }
