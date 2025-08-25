@@ -457,7 +457,7 @@ jobs:
           echo "Checking that required callable functions are deployed..."
           RAW=$(yarn dlx firebase-tools@13.29.0 functions:list --project "$PROJECT_ID" --json || true)
           # Yarn dlx prints its own logs before the tool output; trim to the first JSON brace
-          OUT=$(printf "%s" "$RAW" | sed -n "/^{/,$p")
+          OUT=$(printf "%s" "$RAW" | sed -n '/^{/,$p')
           if [ -z "$OUT" ] || ! printf "%s" "$OUT" | head -n1 | grep -q "^{"; then
             echo "Failed to obtain JSON from firebase-tools (functions:list). Raw output follows:" >&2
             printf "%s\n" "$RAW" | sed -e 's/^/RAW: /' | head -c 4000 >&2 || true
