@@ -23,6 +23,8 @@ type AuthContextType = {
   resetPassword: (email: string) => Promise<void>
   signOut: () => Promise<void>
   roles: string[]
+  // Becomes true after the first profile snapshot (or immediately if auth is disabled)
+  rolesReady: boolean
   currentRole: string | null
   setCurrentRole: (r: string | null) => void
 }
@@ -33,6 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<FirebaseUser | null>(null)
   const [loading, setLoading] = useState(true)
   const [roles, setRoles] = useState<string[]>([])
+  const [rolesReady, setRolesReady] = useState<boolean>(false)
   const [currentRole, setCurrentRoleState] = useState<string | null>(
     // persist selected role in localStorage to preserve across reloads
     typeof window !== 'undefined' ? window.localStorage.getItem('kcm_current_role') : null,
@@ -54,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(mockUser)
       setRoles(['parent', 'staff', 'admin'])
       if (!currentRole) setCurrentRoleState('admin')
+      setRolesReady(true)
       setLoading(false)
       return
     }
@@ -63,12 +67,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!u) {
         setRoles([])
         setCurrentRoleState(null)
+        setRolesReady(true)
         try {
           window.localStorage.removeItem('kcm_current_role')
         } catch {
           /* ignore */
         }
+        return
       }
+      // User signed in: default role quickly for snappier UX; finalize after profile loads
+      if (!currentRole) {
+        setCurrentRoleState('parent')
+        try {
+          window.localStorage.setItem('kcm_current_role', 'parent')
+        } catch {
+          /* ignore */
+        }
+      }
+      setRolesReady(false)
     })
     return unsub
   }, [disableAuthFlag, currentRole])
@@ -78,6 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user || disableAuthFlag) return
     const ref = doc(db, 'users', user.uid)
     let wroteDefault = false
+    setRolesReady(false)
     // Ensure profile creation with retry/backoff to handle transient failures
     const ensureProfile = async () => {
       const baseDoc = {
@@ -128,10 +145,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             /* ignore */
           }
         }
+        setRolesReady(true)
       },
       err => {
         console.warn('Failed to load user profile', err)
         setRoles([])
+        setRolesReady(true)
       },
     )
     return unsub
@@ -213,6 +232,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         resetPassword,
         signOut,
         roles,
+        rolesReady,
         currentRole,
         setCurrentRole,
       }}

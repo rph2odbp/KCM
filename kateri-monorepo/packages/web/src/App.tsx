@@ -6,6 +6,9 @@ import Login from './Login'
 import RoleSelector from './RoleSelector'
 import Topbar from './components/Topbar'
 import ParentLanding from './roles/ParentLanding'
+import RegistrationDetail from './roles/parent/RegistrationDetail'
+import RegistrationStepper from './roles/parent/RegistrationStepper'
+import RegistrationFormsPlaceholder from './roles/parent/RegistrationFormsPlaceholder'
 import StaffLanding from './roles/StaffLanding'
 import AdminLanding from './roles/AdminLanding'
 
@@ -48,6 +51,38 @@ function App() {
                     </Protected>
                   }
                 />
+                {/* Parent registration dedicated pages */}
+                <Route
+                  path="/parent/register"
+                  element={
+                    <Protected>
+                      <RoleProtected role="parent">
+                        <RegistrationStepper />
+                      </RoleProtected>
+                    </Protected>
+                  }
+                />
+                <Route
+                  path="/parent/registration/:year/:gender/:sessionId/:regId"
+                  element={
+                    <Protected>
+                      <RoleProtected role="parent">
+                        <RegistrationDetail />
+                      </RoleProtected>
+                    </Protected>
+                  }
+                />
+                <Route
+                  path="/parent/registration/:year/:gender/:sessionId/:regId/forms"
+                  element={
+                    <Protected>
+                      <RoleProtected role="parent">
+                        <RegistrationFormsPlaceholder />
+                      </RoleProtected>
+                    </Protected>
+                  }
+                />
+
                 {/* Role-specific roots */}
                 <Route
                   path="/parent/*"
@@ -196,8 +231,8 @@ function Protected({ children }: { children: JSX.Element }) {
 }
 
 function RoleProtected({ role, children }: { role: string; children: JSX.Element }) {
-  const { currentRole, loading } = useAuth()
-  if (loading) return <div>Loading...</div>
+  const { currentRole, loading, rolesReady } = useAuth()
+  if (loading || !rolesReady) return <div>Loading...</div>
   // Dev bypass: allow viewing admin routes without the admin role when enabled via env
   const bypassVal = (import.meta as unknown as { env: Record<string, string | undefined> }).env
     .VITE_BYPASS_ADMIN_ROLE

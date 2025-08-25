@@ -249,3 +249,17 @@ jobs:
           yarn dlx firebase-tools@13.29.0 functions:log \
             --only helloWorld \
             --project "$PROJECT_ID" || true
+
+      - name: Tail logs for startRegistration (Gen2)
+        if: always()
+        run: |
+          yarn dlx firebase-tools@13.29.0 functions:log \
+            --only startRegistration \
+            --project "$PROJECT_ID" || true
+
+      - name: Tail logs for confirmRegistration (Gen2)
+        if: always()
+        run: |
+          yarn dlx firebase-tools@13.29.0 functions:log \
+            --only confirmRegistration \
+            --project "$PROJECT_ID" || true
