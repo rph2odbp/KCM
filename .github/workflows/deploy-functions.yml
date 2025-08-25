@@ -237,10 +237,26 @@ jobs:
           echo "Checking that required callable functions are deployed..."
           OUT=$(yarn dlx firebase-tools@13.29.0 functions:list --project "$PROJECT_ID" --json)
           echo "$OUT" | head -c 2000 || true
-          echo "$OUT" | grep -q 'createRegistration' || { echo 'createRegistration missing after deploy'; exit 1; }
-          echo "$OUT" | grep -q 'startRegistration' || { echo 'startRegistration missing after deploy'; exit 1; }
-          echo "$OUT" | grep -q 'confirmRegistration' || { echo 'confirmRegistration missing after deploy'; exit 1; }
-          echo "$OUT" | grep -q 'ensureUserProfile' || { echo 'ensureUserProfile missing after deploy'; exit 1; }
+          echo "$OUT" | node -e '
+            let s = "";
+            process.stdin.on("data", d => (s += d)).on("end", () => {
+              try {
+                const o = JSON.parse(s);
+                const arr = Array.isArray(o) ? o : (o.functions || []);
+                const ids = arr.map(f => f.id);
+                const required = ["createRegistration", "startRegistration", "confirmRegistration", "ensureUserProfile"];
+                const missing = required.filter(r => !ids.includes(r));
+                console.log("Functions discovered:", ids.join(", "));
+                if (missing.length) {
+                  console.error("Missing required functions:", missing.join(", "));
+                  process.exit(1);
+                }
+              } catch (e) {
+                console.error("Failed to parse functions:list JSON:", e?.message || e);
+                process.exit(1);
+              }
+            });
+          '
           echo "All required callables present."
 
       - name: List deployed functions
