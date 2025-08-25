@@ -128,27 +128,38 @@ export const ensureUserProfile = onCall({ region: 'us-central1' }, async req => 
 export const listMyRegistrations = onCall({ region: 'us-central1' }, async req => {
   const uid = req.auth?.uid
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in required')
-  const snap = await db.collectionGroup('registrations').where('parentId', '==', uid).get()
-  const items = snap.docs.map(d => {
-    const data = d.data() as Partial<{
-      year: number
-      gender: 'boys' | 'girls'
-      sessionId: string
-      camperId: string
-      status: string
-      missing?: Record<string, string[]>
-    }>
-    return {
-      id: d.id,
-      year: Number(data.year ?? 0),
-      gender: (data.gender as 'boys' | 'girls') || 'boys',
-      sessionId: String(data.sessionId ?? ''),
-      camperId: String(data.camperId ?? ''),
-      status: String(data.status ?? ''),
-      missing: (data.missing as Record<string, string[]>) || undefined,
+  try {
+    const snap = await db.collectionGroup('registrations').where('parentId', '==', uid).get()
+    const items = snap.docs.map(d => {
+      const data = d.data() as Partial<{
+        year: number
+        gender: 'boys' | 'girls'
+        sessionId: string
+        camperId: string
+        status: string
+        missing?: Record<string, string[]>
+      }>
+      return {
+        id: d.id,
+        year: Number(data.year ?? 0),
+        gender: (data.gender as 'boys' | 'girls') || 'boys',
+        sessionId: String(data.sessionId ?? ''),
+        camperId: String(data.camperId ?? ''),
+        status: String(data.status ?? ''),
+        missing: (data.missing as Record<string, string[]>) || undefined,
+      }
+    })
+    logger.info('listMyRegistrations', { uid, count: items.length })
+    return { ok: true, data: items }
+  } catch (err) {
+    captureException(err, { function: 'listMyRegistrations', uid })
+    // Map common Firestore/IAM errors to HttpsError with a proper status code
+    const msg = (err as Error).message || ''
+    if (/PERMISSION_DENIED|permission/i.test(msg)) {
+      throw new HttpsError('permission-denied', 'PERMISSION_DENIED')
     }
-  })
-  return { ok: true, data: items }
+    throw new HttpsError('internal', 'INTERNAL')
+  }
 })
 
 // Health endpoint to verify registration environment wiring
@@ -183,3 +194,9 @@ export const registrationEnvHealthz = onRequest(
     }
   },
 )
+
+// Simple auth echo for debugging client tokens and backend DB
+export const whoami = onCall({ region: 'us-central1' }, async req => {
+  const uid = req.auth?.uid || null
+  return { ok: true, uid, databaseId: databaseIdInUse }
+})
