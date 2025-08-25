@@ -1,0 +1,93 @@
+name: Nightly Firebase Healthcheck
+
+on:
+  schedule:
+    - cron: "22 7 * * *" # daily at 07:22 UTC
+  workflow_dispatch: {}
+
+concurrency:
+  group: nightly-healthcheck
+  cancel-in-progress: false
+
+jobs:
+  health:
+    name: Health checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PROJECT_ID: kcm-firebase-b7d6a
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT_EMAIL }}
+          project_id: ${{ env.PROJECT_ID }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - name: Setup gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Assert impersonated account matches expected deploy SA
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTIVE=$(gcloud auth list --filter=status:ACTIVE --format='value(account)')
+          echo "Expected SA: ${GCP_SERVICE_ACCOUNT_EMAIL}"
+          echo "Active SA:   ${ACTIVE}"
+          test "${ACTIVE}" = "${GCP_SERVICE_ACCOUNT_EMAIL}"
+
+      - name: Verify Firestore database exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcloud config set project "$PROJECT_ID" >/dev/null
+          TARGET_DB=${FIRESTORE_DATABASE_ID:-"(default)"}
+          DBS=$(gcloud firestore databases list --format=json || true)
+          if ! echo "$DBS" | grep -q '"name": ".*/databases/'"$TARGET_DB"'"'; then
+            echo "Database '${TARGET_DB}' not found in project $PROJECT_ID" >&2
+            exit 1
+          fi
+
+      - name: Verify required callables exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          REQUIRED=(createRegistration startRegistration confirmRegistration ensureUserProfile)
+          REGION="us-central1"
+          MISSING=()
+          for fn in "${REQUIRED[@]}"; do
+            if gcloud functions describe "$fn" --region="$REGION" --format='value(name)' --v2 >/dev/null 2>&1 || \
+               gcloud functions describe "$fn" --region="$REGION" --format='value(name)' --gen2 >/dev/null 2>&1; then
+              echo "$fn: OK"
+            else
+              echo "$fn: MISSING"
+              MISSING+=("$fn")
+            fi
+          done
+          if [ ${#MISSING[@]} -gt 0 ]; then
+            echo "Missing required functions: ${MISSING[*]}" >&2
+            exit 1
+          fi
+
+      - name: Probe endpoints (non-blocking)
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          REQUIRED=(createRegistration startRegistration confirmRegistration ensureUserProfile)
+          REGION="us-central1"
+          for fn in "${REQUIRED[@]}"; do
+            URI=$(gcloud functions describe "$fn" --region="$REGION" --format='value(serviceConfig.uri)' --v2 2>/dev/null || \
+                  gcloud functions describe "$fn" --region="$REGION" --format='value(serviceConfig.uri)' --gen2 2>/dev/null || true)
+            [ -z "$URI" ] && continue
+            curl -sI --max-time 10 "$URI" | head -n1 || true
+          done
