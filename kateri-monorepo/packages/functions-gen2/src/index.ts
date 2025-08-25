@@ -129,27 +129,47 @@ export const listMyRegistrations = onCall({ region: 'us-central1' }, async req =
   const uid = req.auth?.uid
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in required')
   try {
-    const snap = await db.collectionGroup('registrations').where('parentId', '==', uid).get()
-    const items = snap.docs.map(d => {
-      const data = d.data() as Partial<{
-        year: number
-        gender: 'boys' | 'girls'
-        sessionId: string
-        camperId: string
-        status: string
-        missing?: Record<string, string[]>
-      }>
-      return {
-        id: d.id,
-        year: Number(data.year ?? 0),
-        gender: (data.gender as 'boys' | 'girls') || 'boys',
-        sessionId: String(data.sessionId ?? ''),
-        camperId: String(data.camperId ?? ''),
-        status: String(data.status ?? ''),
-        missing: (data.missing as Record<string, string[]>) || undefined,
+    const items: Array<{
+      id: string
+      year: number
+      gender: 'boys' | 'girls'
+      sessionId: string
+      camperId: string
+      status: string
+      missing?: Record<string, string[]>
+    }> = []
+    const years = await db.collection('sessions').listDocuments()
+    for (const yRef of years) {
+      for (const gender of ['boys', 'girls'] as const) {
+        const sessSnap = await yRef.collection(gender).get()
+        for (const s of sessSnap.docs) {
+          const regsSnap = await s.ref
+            .collection('registrations')
+            .where('parentId', '==', uid)
+            .get()
+          regsSnap.forEach(d => {
+            const data = d.data() as Partial<{
+              year: number
+              gender: 'boys' | 'girls'
+              sessionId: string
+              camperId: string
+              status: string
+              missing?: Record<string, string[]>
+            }>
+            items.push({
+              id: d.id,
+              year: Number((data.year ?? Number(yRef.id)) || 0),
+              gender: (data.gender as 'boys' | 'girls') || (gender as 'boys' | 'girls'),
+              sessionId: String(data.sessionId ?? s.id),
+              camperId: String(data.camperId ?? ''),
+              status: String(data.status ?? ''),
+              missing: (data.missing as Record<string, string[]>) || undefined,
+            })
+          })
+        }
       }
-    })
-    logger.info('listMyRegistrations', { uid, count: items.length })
+    }
+    logger.info('listMyRegistrations scanned', { uid, count: items.length })
     return { ok: true, data: items }
   } catch (err) {
     captureException(err, { function: 'listMyRegistrations', uid })
