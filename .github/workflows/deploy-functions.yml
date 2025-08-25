@@ -459,31 +459,55 @@ jobs:
           # Yarn dlx prints its own logs before the tool output; trim to the first JSON brace
           OUT=$(printf "%s" "$RAW" | sed -n '/^{/,$p')
           if [ -z "$OUT" ] || ! printf "%s" "$OUT" | head -n1 | grep -q "^{"; then
-            echo "Failed to obtain JSON from firebase-tools (functions:list). Raw output follows:" >&2
-            printf "%s\n" "$RAW" | sed -e 's/^/RAW: /' | head -c 4000 >&2 || true
-            exit 1
+            echo "firebase-tools output not JSON; will fallback to gcloud." >&2
+            OUT=""
           fi
-          printf "%s" "$OUT" | head -c 2000 || true
-          printf "%s" "$OUT" | node -e '
-            let s = "";
-            process.stdin.on("data", d => (s += d)).on("end", () => {
-              try {
+          # Try firebase-tools JSON first
+          PARSE_OK=0
+          if [ -n "$OUT" ]; then
+            printf "%s" "$OUT" | head -c 2000 || true
+            if printf "%s" "$OUT" | node -e '
+              let s = "";
+              process.stdin.on("data", d => (s += d)).on("end", () => {
                 const o = JSON.parse(s);
                 const arr = Array.isArray(o) ? o : (o.functions || []);
                 const ids = arr.map(f => f.id);
                 const required = ["createRegistration", "startRegistration", "confirmRegistration", "ensureUserProfile"];
                 const missing = required.filter(r => !ids.includes(r));
-                console.log("Functions discovered:", ids.join(", "));
+                console.log("Functions discovered (firebase-tools):", ids.join(", "));
                 if (missing.length) {
                   console.error("Missing required functions:", missing.join(", "));
                   process.exit(1);
                 }
-              } catch (e) {
-                console.error("Failed to parse functions:list JSON:", e?.message || e);
-                process.exit(1);
-              }
-            });
-          '
+              });
+            ' ; then
+              PARSE_OK=1
+            else
+              echo "firebase-tools JSON parse failed; will fallback to gcloud." >&2
+            fi
+          fi
+          # Fallback to gcloud if needed
+          if [ "$PARSE_OK" -ne 1 ]; then
+            echo "Using gcloud functions list fallback..."
+            IDS=$(gcloud functions list --gen2 --regions=us-central1 --format='value(name)' || true)
+            if [ -z "$IDS" ]; then
+              echo "Failed to list functions via gcloud." >&2
+              exit 1
+            fi
+            # Extract last path segment as function id
+            IDS_FLAT=$(printf "%s\n" "$IDS" | awk -F/ '{print $NF}' | tr '\n' ' ')
+            echo "Functions discovered (gcloud): $IDS_FLAT"
+            missing=()
+            for r in createRegistration startRegistration confirmRegistration ensureUserProfile; do
+              if ! printf "%s\n" "$IDS_FLAT" | tr ' ' '\n' | grep -Fxq "$r"; then
+                missing+=("$r")
+              fi
+            done
+            if [ ${#missing[@]} -gt 0 ]; then
+              echo "Missing required functions: ${missing[*]}" >&2
+              exit 1
+            fi
+          fi
           echo "All required callables present."
 
       - name: List deployed functions
