@@ -4,7 +4,7 @@ import { setGlobalOptions } from 'firebase-functions/v2'
 import { onSchedule } from 'firebase-functions/v2/scheduler'
 import { onDocumentUpdated } from 'firebase-functions/v2/firestore'
 import './admin'
-import { db } from './admin'
+import { db, databaseIdInUse } from './admin'
 import { FieldValue } from 'firebase-admin/firestore'
 import cors from 'cors'
 import { SENTRY_DSN_SECRET, ensureSentryInitialized, captureException } from './sentry'
@@ -129,7 +129,7 @@ export const registrationEnvHealthz = onRequest(
   { region: 'us-central1', invoker: 'private', secrets: [SENTRY_DSN_SECRET] },
   async (req, res) => {
     try {
-      const databaseId = process.env.FIRESTORE_DATABASE_ID || '(default)'
+      const databaseId = databaseIdInUse
       // List years under sessions
       const years = await db.collection('sessions').listDocuments()
       const yearIds = years.map(d => d.id)

@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.admin = exports.db = void 0;
+exports.admin = exports.db = exports.databaseIdInUse = void 0;
 const admin = __importStar(require("firebase-admin"));
 exports.admin = admin;
 const firestore_1 = require("firebase-admin/firestore");
@@ -41,6 +41,7 @@ if (admin.apps.length === 0) {
     admin.initializeApp();
 }
 const app = admin.app();
-const databaseId = process.env.FIRESTORE_DATABASE_ID;
-exports.db = databaseId ? (0, firestore_1.getFirestore)(app, databaseId) : (0, firestore_1.getFirestore)(app);
+// Use explicit database ID if provided; otherwise default to 'kcm-db'
+exports.databaseIdInUse = process.env.FIRESTORE_DATABASE_ID || 'kcm-db';
+exports.db = (0, firestore_1.getFirestore)(app, exports.databaseIdInUse);
 //# sourceMappingURL=admin.js.map

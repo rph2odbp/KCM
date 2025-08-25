@@ -112,7 +112,7 @@ exports.ensureUserProfile = (0, https_1.onCall)({ region: 'us-central1' }, async
 // Health endpoint to verify registration environment wiring
 exports.registrationEnvHealthz = (0, https_1.onRequest)({ region: 'us-central1', invoker: 'private', secrets: [sentry_1.SENTRY_DSN_SECRET] }, async (req, res) => {
     try {
-        const databaseId = process.env.FIRESTORE_DATABASE_ID || '(default)';
+        const databaseId = admin_1.databaseIdInUse;
         // List years under sessions
         const years = await admin_1.db.collection('sessions').listDocuments();
         const yearIds = years.map(d => d.id);

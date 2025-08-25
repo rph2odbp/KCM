@@ -10,3 +10,4 @@ export { backupFirestoreDaily } from './backup';
 export declare const ensureUserProfile: import("firebase-functions/v2/https").CallableFunction<any, Promise<{
     ok: boolean;
 }>, unknown>;
+export declare const registrationEnvHealthz: import("firebase-functions/v2/https").HttpsFunction;
