@@ -58,7 +58,7 @@ This project is set up with production-minded operations from day one. Key piece
 ### Functions Gen 2 and Firestore
 
 - Runtime: Firebase Functions Gen 2 (Node 22), region `us-central1`.
-- Named Firestore DB: `kcm-db` (not the default). All triggers and Admin calls use this DB explicitly.
+- Firestore DB: uses the default database unless `FIRESTORE_DATABASE_ID` is explicitly set.
 
 ### Backups (Firestore export)
 

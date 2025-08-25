@@ -3,9 +3,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ensureUserProfile = exports.backupFirestoreDaily = exports.cleanupDeletedUsersDaily = exports.onCamperUpdatedV2 = exports.dailyHealthCheckV2 = exports.helloWorld = exports.getSessionHoldsSummary = exports.ensureSessionCountersDaily = exports.sweepExpiredHoldsV2 = exports.releaseExpiredHolds = exports.confirmRegistration = exports.startRegistration = exports.createRegistration = void 0;
+exports.ensureUserProfile = exports.backupFirestoreDaily = exports.cleanupDeletedUsersDaily = exports.onCamperUpdatedV2 = exports.dailyHealthCheckV2 = exports.healthz = exports.helloWorld = exports.getSessionHoldsSummary = exports.ensureSessionCountersDaily = exports.sweepExpiredHoldsV2 = exports.releaseExpiredHolds = exports.confirmRegistration = exports.startRegistration = exports.createRegistration = void 0;
 const firebase_functions_1 = require("firebase-functions");
 const https_1 = require("firebase-functions/v2/https");
+const v2_1 = require("firebase-functions/v2");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const firestore_1 = require("firebase-functions/v2/firestore");
 require("./admin");
@@ -25,6 +26,12 @@ Object.defineProperty(exports, "getSessionHoldsSummary", { enumerable: true, get
 (0, sentry_1.ensureSentryInitialized)();
 // admin + db are initialized in ./admin
 const corsHandler = (0, cors_1.default)({ origin: true });
+// Set a default runtime service account for all functions (can be overridden per-function)
+(0, v2_1.setGlobalOptions)({
+    ...(process.env.FUNCTIONS_RUNTIME_SERVICE_ACCOUNT
+        ? { serviceAccount: process.env.FUNCTIONS_RUNTIME_SERVICE_ACCOUNT }
+        : { serviceAccount: 'github-deployer@kcm-firebase-b7d6a.iam.gserviceaccount.com' }),
+});
 exports.helloWorld = (0, https_1.onRequest)({ region: 'us-central1', invoker: 'private', secrets: [sentry_1.SENTRY_DSN_SECRET] }, async (request, response) => {
     try {
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -42,6 +49,26 @@ exports.helloWorld = (0, https_1.onRequest)({ region: 'us-central1', invoker: 'p
         response.status(500).json({ error: 'Internal error' });
     }
 });
+// Public health endpoint for uptime checks. Performs a lightweight Firestore read (no writes).
+exports.healthz = (0, https_1.onRequest)({ region: 'us-central1', invoker: 'public', secrets: [sentry_1.SENTRY_DSN_SECRET] }, async (request, response) => {
+    try {
+        // CORS for browser-based probes (not required for Cloud Monitoring)
+        await new Promise(resolve => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            corsHandler(request, response, () => resolve());
+        });
+        // Minimal Firestore connectivity check: read a non-existent doc
+        const snap = await admin_1.db.collection('_health').doc('ping').get();
+        const ok = snap.exists === false || snap.exists === true;
+        response.status(200).json({ ok, ts: Date.now() });
+    }
+    catch (err) {
+        (0, sentry_1.captureException)(err, { function: 'healthz' });
+        const msg = err instanceof Error ? err.message : String(err);
+        firebase_functions_1.logger.error('healthz failed', { message: msg });
+        response.status(500).json({ ok: false });
+    }
+});
 exports.dailyHealthCheckV2 = (0, scheduler_1.onSchedule)({
     region: 'us-central1',
     schedule: '0 6 * * *',
@@ -56,11 +83,13 @@ exports.dailyHealthCheckV2 = (0, scheduler_1.onSchedule)({
         throw err;
     }
 });
+const FUNCTIONS_SERVICE_ACCOUNT = process.env.FUNCTIONS_RUNTIME_SERVICE_ACCOUNT;
 exports.onCamperUpdatedV2 = (0, firestore_1.onDocumentUpdated)({
     region: 'us-central1',
     document: 'campers/{camperId}',
-    database: 'kcm-db',
+    database: process.env.FIRESTORE_DATABASE_ID || '(default)',
     secrets: [sentry_1.SENTRY_DSN_SECRET],
+    ...(FUNCTIONS_SERVICE_ACCOUNT ? { serviceAccount: FUNCTIONS_SERVICE_ACCOUNT } : {}),
 }, async (event) => {
     try {
         if (!event.data)

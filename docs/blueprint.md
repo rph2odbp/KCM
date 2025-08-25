@@ -24,7 +24,7 @@ This blueprint captures the current product vision and working agreements for th
 - Auth: Keyless deploys via Workload Identity Federation (OIDC) only (no long‑lived `FIREBASE_TOKEN`).
 - Secrets: `SENTRY_DSN` stored in Google Secret Manager and referenced by Gen2 functions; resolved at deploy time. Deploy/runtime SAs have least‑privilege IAM.
 - Supporting workflows: Users Audit (lists Auth + Firestore users), Grant Admin (by email), Hosting live/preview (optional).
-- Project/env: `kcm-firebase-b7d6a` (region `us-central1`), Firestore database id `kcm-db`.
+- Project/env: `kcm-firebase-b7d6a` (region `us-central1`), Firestore database is the default unless overridden.
 
 ## Roles and Permissions
 
@@ -181,14 +181,14 @@ Deployed
   - Behavior: Create/merge `users/{uid}` with default roles and metadata; admin whitelist supported.
 - Ensure User Profile (Gen2 Callable)
   - Name: `ensureUserProfile`
-  - Behavior: Server‑side ensure/merge of `users/{uid}` (DB `kcm-db`) for robustness on first login/registration.
+  - Behavior: Server‑side ensure/merge of `users/{uid}` in the active database for robustness on first login/registration.
 - Registration (Gen2 HTTPS)
   - `createRegistration`: Validates grade (2–8), resolves `gender` path (`boys|girls`), ensures camper exists/creates one, and writes registration to `sessions/{year}/{gender}/{sessionId}/registrations`.
   - Future: payment hooks, waitlist logic, capacity checks.
 - Utilities (Gen2)
   - `helloWorld` (private HTTPS) for smoke
   - `dailyHealthCheckV2` (scheduler)
-  - `onCamperUpdatedV2` (firestore onUpdate) on `campers/{camperId}` in database `kcm-db`
+  - `onCamperUpdatedV2` (firestore onUpdate) on `campers/{camperId}` in the active database
   - Backups and auth cleanup tasks
 
 ## Local Development

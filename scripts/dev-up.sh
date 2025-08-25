@@ -22,14 +22,14 @@ yarn --cwd kateri-monorepo install --inline-builds --silent || yarn --cwd kateri
 echo "[dev-up] Starting web dev server..."
 ( yarn web:dev ) > /tmp/kcm_web.log 2>&1 & echo $! > /tmp/kcm_web.pid
 
-echo "[dev-up] Waiting for ports to open..."
+echo "[dev-up] Waiting for port 3000 to open..."
 for i in {1..20}; do
-  ss -ltn '( sport = :5173 )' | grep -q 5173 && break || true
+  ss -ltn '( sport = :3000 )' | grep -q 3000 && break || true
   sleep 1
 done
 
-echo "[dev-up] Open ports:" && (ss -ltnp | grep -E ":(5173)\b" || true)
+echo "[dev-up] Open ports:" && (ss -ltnp | grep -E ":(3000)\b" || true)
 
 echo "[dev-up] Tail web log:" && (tail -n 30 /tmp/kcm_web.log || true)
 
-echo "[dev-up] Done. Open your forwarded port 5173."
+echo "[dev-up] Done. Open your forwarded port 3000."
