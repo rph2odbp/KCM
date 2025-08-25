@@ -543,3 +543,26 @@ jobs:
           yarn dlx firebase-tools@13.29.0 functions:log \
             --only ensureUserProfile \
             --project "$PROJECT_ID" || true
+
+      - name: Registration env health check (private)
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://us-central1-${PROJECT_ID}.cloudfunctions.net/registrationEnvHealthz"
+          echo "Calling ${URL} with identity token"
+          if ! IDT=$(gcloud auth print-identity-token --audiences="$URL" 2>/dev/null); then
+            echo "WARN: Could not mint identity token; skipping health check."
+            exit 0
+          fi
+          RESP=$(curl -sS -H "Authorization: Bearer ${IDT}" "$URL") || true
+          echo "Healthz response: $RESP"
+          DB=$(node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).databaseId||"")}catch{}})') <<<"$RESP"
+          if [ -z "$DB" ]; then
+            echo "::warning title=Healthz failed::No databaseId in response"; exit 0
+          fi
+          if [ "$DB" != "kcm-db" ]; then
+            echo "::warning title=Unexpected databaseId::Expected kcm-db, got '$DB'"
+          else
+            echo "✓ Functions databaseId is kcm-db"
+          fi
