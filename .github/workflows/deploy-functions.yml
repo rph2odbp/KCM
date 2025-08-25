@@ -114,6 +114,96 @@ jobs:
           gcloud auth print-access-token >/dev/null
           echo "ADC usable via gcloud"
 
+      - name: Validate required IAM roles and bindings (preflight)
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcloud config set project "$PROJECT_ID" >/dev/null
+          PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')
+          RUNTIME_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+          CLOUDBUILD_SA="${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com"
+
+          echo "Checking project-level roles for ${GCP_SERVICE_ACCOUNT_EMAIL}..."
+          POLICY=$(gcloud projects get-iam-policy "$PROJECT_ID" --format=json)
+          check_role() {
+            local ROLE="$1"
+            if echo "$POLICY" | grep -q "\"$ROLE\"" && echo "$POLICY" | grep -q "serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL}"; then
+              echo "✓ $ROLE"
+            else
+              echo "MISSING: $ROLE"
+              MISSING_ROLES+="$ROLE\n"
+            fi
+          }
+          MISSING_ROLES=""
+          check_role roles/artifactregistry.admin
+          check_role roles/cloudfunctions.developer
+          check_role roles/run.admin
+          check_role roles/cloudbuild.builds.editor
+          check_role roles/datastore.user
+          check_role roles/secretmanager.viewer
+          check_role roles/secretmanager.secretAccessor
+
+          echo "Checking SA User binding on runtime SA (${RUNTIME_SA})..."
+          if gcloud iam service-accounts get-iam-policy "$RUNTIME_SA" --format=json >/tmp/rt.json 2>/dev/null; then
+            if grep -q "roles/iam.serviceAccountUser" /tmp/rt.json && grep -q "serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL}" /tmp/rt.json; then
+              echo "✓ roles/iam.serviceAccountUser on ${RUNTIME_SA}"
+            else
+              echo "MISSING: roles/iam.serviceAccountUser on ${RUNTIME_SA} for ${GCP_SERVICE_ACCOUNT_EMAIL}"
+              MISSING_RT_SA=1
+            fi
+          else
+            echo "WARN: Could not read IAM policy for ${RUNTIME_SA} (insufficient permissions to view)."
+            MISSING_RT_SA=1
+          fi
+
+          echo "Checking Cloud Build SA Artifact Registry writer..."
+          if echo "$POLICY" | grep -q "roles/artifactregistry.writer" && echo "$POLICY" | grep -q "serviceAccount:${CLOUDBUILD_SA}"; then
+            echo "✓ ${CLOUDBUILD_SA} has roles/artifactregistry.writer"
+          else
+            echo "WARN: ${CLOUDBUILD_SA} missing roles/artifactregistry.writer (build may fail to push images)."
+            MISSING_CLOUD_BUILD_WRITER=1
+          fi
+
+          if [ -n "${MISSING_ROLES}" ] || [ "${MISSING_RT_SA:-0}" = "1" ] || [ "${MISSING_CLOUD_BUILD_WRITER:-0}" = "1" ]; then
+            echo "::error title=Missing IAM roles/bindings detected::" \
+              "One or more required roles are missing for deployment. Please grant the following and re-run:"
+            echo
+            echo "Project: $PROJECT_ID"
+            echo "Deploy SA: ${GCP_SERVICE_ACCOUNT_EMAIL}"
+            echo "Runtime SA: ${RUNTIME_SA}"
+            echo "Cloud Build SA: ${CLOUDBUILD_SA}"
+            echo
+            if [ -n "${MISSING_ROLES}" ]; then
+              echo "Missing project roles on ${GCP_SERVICE_ACCOUNT_EMAIL}:"
+              printf "%b" "$MISSING_ROLES"
+              echo
+              echo "Grant (requires Project Owner/Editor):"
+              echo "gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL} --role=roles/artifactregistry.admin"
+              echo "gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL} --role=roles/cloudfunctions.developer"
+              echo "gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL} --role=roles/run.admin"
+              echo "gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL} --role=roles/cloudbuild.builds.editor"
+              echo "gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL} --role=roles/datastore.user"
+              echo "gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL} --role=roles/secretmanager.viewer"
+              echo "gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL} --role=roles/secretmanager.secretAccessor"
+              echo
+            fi
+            if [ "${MISSING_RT_SA:-0}" = "1" ]; then
+              echo "Missing SA User on runtime SA: ${RUNTIME_SA}"
+              echo "Grant (requires Project Owner/Editor):"
+              echo "gcloud iam service-accounts add-iam-policy-binding ${RUNTIME_SA} --member=serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL} --role=roles/iam.serviceAccountUser"
+              echo
+            fi
+            if [ "${MISSING_CLOUD_BUILD_WRITER:-0}" = "1" ]; then
+              echo "Cloud Build SA lacks Artifact Registry writer: ${CLOUDBUILD_SA}"
+              echo "Grant (requires Project Owner/Editor):"
+              echo "gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:${CLOUDBUILD_SA} --role=roles/artifactregistry.writer"
+              echo
+            fi
+            exit 1
+          else
+            echo "All required roles/bindings present."
+          fi
+
       # firebase-tools will use ADC from WIF (GOOGLE_APPLICATION_CREDENTIALS) — no --token needed
 
       - name: Verify access to SENTRY_DSN secret
