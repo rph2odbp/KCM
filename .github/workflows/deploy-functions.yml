@@ -544,6 +544,18 @@ jobs:
             --only ensureUserProfile \
             --project "$PROJECT_ID" || true
 
+      - name: Mint ID token for health check
+        if: always()
+        id: mint_idt
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT_EMAIL }}
+          project_id: ${{ env.PROJECT_ID }}
+          token_format: "id_token"
+          audience: https://us-central1-${{ env.PROJECT_ID }}.cloudfunctions.net/registrationEnvHealthz
+          create_credentials_file: false
+
       - name: Registration env health check (private)
         if: always()
         shell: bash
@@ -551,12 +563,38 @@ jobs:
           set -euo pipefail
           URL="https://us-central1-${PROJECT_ID}.cloudfunctions.net/registrationEnvHealthz"
           echo "Calling ${URL} with identity token"
-          if ! IDT=$(gcloud auth print-identity-token --audiences="$URL" 2>/dev/null); then
+          IDT="${{ steps.mint_idt.outputs.id_token }}"
+          if [ -z "$IDT" ]; then
+            echo "No id_token from action; attempting gcloud fallback"
+            IDT=$(gcloud auth print-identity-token --audiences="$URL" 2>/dev/null || true)
+          fi
+          if [ -z "$IDT" ]; then
             echo "WARN: Could not mint identity token; skipping health check."
             exit 0
           fi
-          RESP=$(curl -sS -H "Authorization: Bearer ${IDT}" "$URL") || true
+          # Call once and capture status
+          STATUS=$(curl -sS -o /tmp/hresp -w "%{http_code}" -H "Authorization: Bearer ${IDT}" "$URL" || true)
+          RESP=$(cat /tmp/hresp || true)
+          echo "Healthz HTTP $STATUS"
           echo "Healthz response: $RESP"
+          if [ "$STATUS" = "403" ] || [ "$STATUS" = "401" ]; then
+            echo "Auth forbidden; attempting to grant roles/run.invoker to ${GCP_SERVICE_ACCOUNT_EMAIL} on the Cloud Run service, then retry."
+            # Find the Cloud Run service that backs this function
+            SVC=$(gcloud run services list --region us-central1 --format=json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const arr=JSON.parse(s);const m=arr.map(x=>x.metadata?.name||"");const c=m.find(n=>n.toLowerCase().includes("registrationenvhealthz"))||"";console.log(c)}catch{}})')
+            if [ -n "$SVC" ]; then
+              gcloud run services add-iam-policy-binding "$SVC" \
+                --region us-central1 \
+                --member serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL} \
+                --role roles/run.invoker || true
+              sleep 3
+              STATUS=$(curl -sS -o /tmp/hresp -w "%{http_code}" -H "Authorization: Bearer ${IDT}" "$URL" || true)
+              RESP=$(cat /tmp/hresp || true)
+              echo "Retry Healthz HTTP $STATUS"
+              echo "Retry Healthz response: $RESP"
+            else
+              echo "Could not determine Cloud Run service name for registrationEnvHealthz; skipping grant."
+            fi
+          fi
           DB=$(node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).databaseId||"")}catch{}})') <<<"$RESP"
           if [ -z "$DB" ]; then
             echo "::warning title=Healthz failed::No databaseId in response"; exit 0
