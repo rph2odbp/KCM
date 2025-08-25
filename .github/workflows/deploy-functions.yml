@@ -564,8 +564,8 @@ jobs:
           echo "Healthz response: $RESP"
           if [ "$STATUS" = "403" ] || [ "$STATUS" = "401" ]; then
             echo "Auth forbidden; attempting to grant roles/run.invoker to ${GCP_SERVICE_ACCOUNT_EMAIL} on the Cloud Run service, then retry."
-            # Find the Cloud Run service that backs this function
-            SVC=$(gcloud run services list --region us-central1 --format=json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const arr=JSON.parse(s);const m=arr.map(x=>x.metadata?.name||"");const c=m.find(n=>n.toLowerCase().includes("registrationenvhealthz"))||"";console.log(c)}catch{}})')
+            # Resolve the exact Cloud Run service that backs this Gen2 function
+            SVC=$(gcloud functions describe registrationEnvHealthz --gen2 --region us-central1 --format='value(serviceConfig.service)' 2>/dev/null || true)
             if [ -n "$SVC" ]; then
               gcloud run services add-iam-policy-binding "$SVC" \
                 --region us-central1 \
