@@ -10,18 +10,18 @@ const sentry_1 = require("./sentry");
 exports.createRegistration = (0, https_1.onCall)({ region: 'us-central1', invoker: 'public', secrets: [sentry_1.SENTRY_DSN_SECRET] }, async (request) => {
     const uid = request.auth?.uid;
     if (!uid) {
-        throw new Error('UNAUTHENTICATED');
+        throw new https_1.HttpsError('unauthenticated', 'UNAUTHENTICATED');
     }
     try {
         const { year, sessionId, camper } = (request.data || {});
         if (!year || !sessionId || !camper?.firstName || !camper?.lastName) {
-            throw new Error('INVALID_ARGUMENT');
+            throw new https_1.HttpsError('invalid-argument', 'INVALID_ARGUMENT');
         }
         if (camper.gender !== 'male' && camper.gender !== 'female') {
-            throw new Error('INVALID_GENDER');
+            throw new https_1.HttpsError('invalid-argument', 'INVALID_GENDER');
         }
         if (camper.gradeCompleted < 2 || camper.gradeCompleted > 8) {
-            throw new Error('GRADE_OUT_OF_RANGE');
+            throw new https_1.HttpsError('invalid-argument', 'GRADE_OUT_OF_RANGE');
         }
         const genderKey = camper.gender === 'male' ? 'boys' : 'girls';
         const sessionRef = admin_1.db
@@ -31,7 +31,7 @@ exports.createRegistration = (0, https_1.onCall)({ region: 'us-central1', invoke
             .doc(sessionId);
         const sessionSnap = await sessionRef.get();
         if (!sessionSnap.exists) {
-            throw new Error('SESSION_NOT_FOUND');
+            throw new https_1.HttpsError('not-found', 'SESSION_NOT_FOUND');
         }
         const sessionData = sessionSnap.data();
         // Capacity and waitlist logic: count active (non-cancelled, non-waitlisted) regs
@@ -67,7 +67,7 @@ exports.createRegistration = (0, https_1.onCall)({ region: 'us-central1', invoke
         const regRef = sessionRef.collection('registrations').doc();
         const initialStatus = isFull ? (waitlistOpen ? 'waitlisted' : 'cancelled') : 'incomplete';
         if (isFull && !waitlistOpen) {
-            throw new Error('SESSION_FULL');
+            throw new https_1.HttpsError('failed-precondition', 'SESSION_FULL');
         }
         const regData = {
             id: regRef.id,
@@ -103,16 +103,22 @@ exports.createRegistration = (0, https_1.onCall)({ region: 'us-central1', invoke
 exports.startRegistration = (0, https_1.onCall)({ region: 'us-central1', invoker: 'public', secrets: [sentry_1.SENTRY_DSN_SECRET] }, async (request) => {
     const uid = request.auth?.uid;
     if (!uid)
-        throw new Error('UNAUTHENTICATED');
+        throw new https_1.HttpsError('unauthenticated', 'UNAUTHENTICATED');
     try {
         const { year, sessionId, camper, holdMinutes } = (request.data ||
             {});
+        firebase_functions_1.logger.info('startRegistration begin', {
+            year,
+            sessionId,
+            camperGender: camper?.gender,
+            hasNames: Boolean(camper?.firstName && camper?.lastName),
+        });
         if (!year || !sessionId || !camper?.firstName || !camper?.lastName)
-            throw new Error('INVALID_ARGUMENT');
+            throw new https_1.HttpsError('invalid-argument', 'INVALID_ARGUMENT');
         if (camper.gender !== 'male' && camper.gender !== 'female')
-            throw new Error('INVALID_GENDER');
+            throw new https_1.HttpsError('invalid-argument', 'INVALID_GENDER');
         if (camper.gradeCompleted < 2 || camper.gradeCompleted > 8)
-            throw new Error('GRADE_OUT_OF_RANGE');
+            throw new https_1.HttpsError('invalid-argument', 'GRADE_OUT_OF_RANGE');
         const genderKey = camper.gender === 'male' ? 'boys' : 'girls';
         const sessionRef = admin_1.db
             .collection('sessions')
@@ -145,7 +151,7 @@ exports.startRegistration = (0, https_1.onCall)({ region: 'us-central1', invoker
         const result = await admin_1.db.runTransaction(async (tx) => {
             const sSnap = await tx.get(sessionRef);
             if (!sSnap.exists)
-                throw new Error('SESSION_NOT_FOUND');
+                throw new https_1.HttpsError('not-found', 'SESSION_NOT_FOUND');
             const sData = (sSnap.data() || {});
             const capacity = Number(sData.capacity ?? 0);
             const waitlistOpen = Boolean(sData.waitlistOpen ?? true);
@@ -271,14 +277,14 @@ exports.startRegistration = (0, https_1.onCall)({ region: 'us-central1', invoker
 exports.confirmRegistration = (0, https_1.onCall)({ region: 'us-central1', invoker: 'public', secrets: [sentry_1.SENTRY_DSN_SECRET] }, async (request) => {
     const uid = request.auth?.uid;
     if (!uid)
-        throw new Error('UNAUTHENTICATED');
+        throw new https_1.HttpsError('unauthenticated', 'UNAUTHENTICATED');
     try {
         const { year, gender, sessionId, registrationId, depositSuccess } = (request.data ||
             {});
         if (!year || !gender || !sessionId || !registrationId)
-            throw new Error('INVALID_ARGUMENT');
+            throw new https_1.HttpsError('invalid-argument', 'INVALID_ARGUMENT');
         if (!depositSuccess)
-            throw new Error('DEPOSIT_REQUIRED');
+            throw new https_1.HttpsError('failed-precondition', 'DEPOSIT_REQUIRED');
         const sessionRef = admin_1.db
             .collection('sessions')
             .doc(String(year))
@@ -289,17 +295,17 @@ exports.confirmRegistration = (0, https_1.onCall)({ region: 'us-central1', invok
         await admin_1.db.runTransaction(async (tx) => {
             const [sSnap, rSnap] = await Promise.all([tx.get(sessionRef), tx.get(regRef)]);
             if (!sSnap.exists)
-                throw new Error('SESSION_NOT_FOUND');
+                throw new https_1.HttpsError('not-found', 'SESSION_NOT_FOUND');
             if (!rSnap.exists)
-                throw new Error('REG_NOT_FOUND');
+                throw new https_1.HttpsError('not-found', 'REG_NOT_FOUND');
             const rData = rSnap.data();
             if (rData.parentId && rData.parentId !== uid)
-                throw new Error('PERMISSION_DENIED');
+                throw new https_1.HttpsError('permission-denied', 'PERMISSION_DENIED');
             if (rData.status !== 'holding')
-                throw new Error('INVALID_STATUS');
+                throw new https_1.HttpsError('failed-precondition', 'INVALID_STATUS');
             const now = firestore_1.Timestamp.now();
             if (rData.holdExpiresAt && now.toMillis() > rData.holdExpiresAt.toMillis()) {
-                throw new Error('HOLD_EXPIRED');
+                throw new https_1.HttpsError('failed-precondition', 'HOLD_EXPIRED');
             }
             // confirm
             tx.update(sessionRef, {

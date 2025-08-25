@@ -1,5 +1,5 @@
 import { logger } from 'firebase-functions'
-import { onCall } from 'firebase-functions/v2/https'
+import { HttpsError, onCall } from 'firebase-functions/v2/https'
 import { onSchedule } from 'firebase-functions/v2/scheduler'
 import { FieldValue, Timestamp } from 'firebase-admin/firestore'
 import { db } from './admin'
@@ -23,18 +23,18 @@ export const createRegistration = onCall<CreateRegistrationInput>(
   async request => {
     const uid = request.auth?.uid
     if (!uid) {
-      throw new Error('UNAUTHENTICATED')
+      throw new HttpsError('unauthenticated', 'UNAUTHENTICATED')
     }
     try {
       const { year, sessionId, camper } = (request.data || {}) as CreateRegistrationInput
       if (!year || !sessionId || !camper?.firstName || !camper?.lastName) {
-        throw new Error('INVALID_ARGUMENT')
+        throw new HttpsError('invalid-argument', 'INVALID_ARGUMENT')
       }
       if (camper.gender !== 'male' && camper.gender !== 'female') {
-        throw new Error('INVALID_GENDER')
+        throw new HttpsError('invalid-argument', 'INVALID_GENDER')
       }
       if (camper.gradeCompleted < 2 || camper.gradeCompleted > 8) {
-        throw new Error('GRADE_OUT_OF_RANGE')
+        throw new HttpsError('invalid-argument', 'GRADE_OUT_OF_RANGE')
       }
 
       const genderKey = camper.gender === 'male' ? 'boys' : 'girls'
@@ -46,7 +46,7 @@ export const createRegistration = onCall<CreateRegistrationInput>(
 
       const sessionSnap = await sessionRef.get()
       if (!sessionSnap.exists) {
-        throw new Error('SESSION_NOT_FOUND')
+        throw new HttpsError('not-found', 'SESSION_NOT_FOUND')
       }
       const sessionData = sessionSnap.data() as {
         capacity?: number
@@ -88,7 +88,7 @@ export const createRegistration = onCall<CreateRegistrationInput>(
       const regRef = sessionRef.collection('registrations').doc()
       const initialStatus = isFull ? (waitlistOpen ? 'waitlisted' : 'cancelled') : 'incomplete'
       if (isFull && !waitlistOpen) {
-        throw new Error('SESSION_FULL')
+        throw new HttpsError('failed-precondition', 'SESSION_FULL')
       }
       const regData = {
         id: regRef.id,
@@ -129,15 +129,22 @@ export const startRegistration = onCall<StartRegistrationInput>(
   { region: 'us-central1', invoker: 'public', secrets: [SENTRY_DSN_SECRET] },
   async request => {
     const uid = request.auth?.uid
-    if (!uid) throw new Error('UNAUTHENTICATED')
+    if (!uid) throw new HttpsError('unauthenticated', 'UNAUTHENTICATED')
     try {
       const { year, sessionId, camper, holdMinutes } = (request.data ||
         {}) as StartRegistrationInput
+      logger.info('startRegistration begin', {
+        year,
+        sessionId,
+        camperGender: camper?.gender,
+        hasNames: Boolean(camper?.firstName && camper?.lastName),
+      })
       if (!year || !sessionId || !camper?.firstName || !camper?.lastName)
-        throw new Error('INVALID_ARGUMENT')
-      if (camper.gender !== 'male' && camper.gender !== 'female') throw new Error('INVALID_GENDER')
+        throw new HttpsError('invalid-argument', 'INVALID_ARGUMENT')
+      if (camper.gender !== 'male' && camper.gender !== 'female')
+        throw new HttpsError('invalid-argument', 'INVALID_GENDER')
       if (camper.gradeCompleted < 2 || camper.gradeCompleted > 8)
-        throw new Error('GRADE_OUT_OF_RANGE')
+        throw new HttpsError('invalid-argument', 'GRADE_OUT_OF_RANGE')
 
       const genderKey = camper.gender === 'male' ? 'boys' : 'girls'
       const sessionRef = db
@@ -172,7 +179,7 @@ export const startRegistration = onCall<StartRegistrationInput>(
 
       const result = await db.runTransaction(async tx => {
         const sSnap = await tx.get(sessionRef)
-        if (!sSnap.exists) throw new Error('SESSION_NOT_FOUND')
+        if (!sSnap.exists) throw new HttpsError('not-found', 'SESSION_NOT_FOUND')
         const sData = (sSnap.data() || {}) as {
           capacity?: number
           waitlistOpen?: boolean
@@ -321,12 +328,13 @@ export const confirmRegistration = onCall<ConfirmInput>(
   { region: 'us-central1', invoker: 'public', secrets: [SENTRY_DSN_SECRET] },
   async request => {
     const uid = request.auth?.uid
-    if (!uid) throw new Error('UNAUTHENTICATED')
+    if (!uid) throw new HttpsError('unauthenticated', 'UNAUTHENTICATED')
     try {
       const { year, gender, sessionId, registrationId, depositSuccess } = (request.data ||
         {}) as ConfirmInput
-      if (!year || !gender || !sessionId || !registrationId) throw new Error('INVALID_ARGUMENT')
-      if (!depositSuccess) throw new Error('DEPOSIT_REQUIRED')
+      if (!year || !gender || !sessionId || !registrationId)
+        throw new HttpsError('invalid-argument', 'INVALID_ARGUMENT')
+      if (!depositSuccess) throw new HttpsError('failed-precondition', 'DEPOSIT_REQUIRED')
       const sessionRef = db
         .collection('sessions')
         .doc(String(year))
@@ -337,19 +345,21 @@ export const confirmRegistration = onCall<ConfirmInput>(
 
       await db.runTransaction(async tx => {
         const [sSnap, rSnap] = await Promise.all([tx.get(sessionRef), tx.get(regRef)])
-        if (!sSnap.exists) throw new Error('SESSION_NOT_FOUND')
-        if (!rSnap.exists) throw new Error('REG_NOT_FOUND')
+        if (!sSnap.exists) throw new HttpsError('not-found', 'SESSION_NOT_FOUND')
+        if (!rSnap.exists) throw new HttpsError('not-found', 'REG_NOT_FOUND')
         const rData = rSnap.data() as Partial<{
           status: string
           holdId?: string
           holdExpiresAt?: Timestamp
           parentId: string
         }>
-        if (rData.parentId && rData.parentId !== uid) throw new Error('PERMISSION_DENIED')
-        if (rData.status !== 'holding') throw new Error('INVALID_STATUS')
+        if (rData.parentId && rData.parentId !== uid)
+          throw new HttpsError('permission-denied', 'PERMISSION_DENIED')
+        if (rData.status !== 'holding')
+          throw new HttpsError('failed-precondition', 'INVALID_STATUS')
         const now = Timestamp.now()
         if (rData.holdExpiresAt && now.toMillis() > (rData.holdExpiresAt as Timestamp).toMillis()) {
-          throw new Error('HOLD_EXPIRED')
+          throw new HttpsError('failed-precondition', 'HOLD_EXPIRED')
         }
         // confirm
         tx.update(sessionRef, {
