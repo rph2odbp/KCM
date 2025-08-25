@@ -395,6 +395,69 @@ export const confirmRegistration = onCall<ConfirmInput>(
   },
 )
 
+// Stubbed deposit initiation (to be replaced by real PSP integration)
+export const initiateDeposit = onCall<{
+  year: number
+  gender: 'boys' | 'girls'
+  sessionId: string
+  registrationId: string
+  amount?: number
+}>(
+  { region: 'us-central1', invoker: 'public', secrets: [SENTRY_DSN_SECRET] },
+  async request => {
+    const uid = request.auth?.uid
+    if (!uid) throw new HttpsError('unauthenticated', 'UNAUTHENTICATED')
+    try {
+      const { year, gender, sessionId, registrationId, amount } = (request.data || {}) as {
+        year: number
+        gender: 'boys' | 'girls'
+        sessionId: string
+        registrationId: string
+        amount?: number
+      }
+      if (!year || !gender || !sessionId || !registrationId)
+        throw new HttpsError('invalid-argument', 'INVALID_ARGUMENT')
+
+      const sessionRef = db
+        .collection('sessions')
+        .doc(String(year))
+        .collection(gender)
+        .doc(sessionId)
+      const regRef = sessionRef.collection('registrations').doc(registrationId)
+
+      const regSnap = await regRef.get()
+      if (!regSnap.exists) throw new HttpsError('not-found', 'REG_NOT_FOUND')
+      const reg = regSnap.data() as Partial<{
+        parentId: string
+        status: string
+        depositPaid?: boolean
+      }>
+      if (!reg.parentId || reg.parentId !== uid)
+        throw new HttpsError('permission-denied', 'PERMISSION_DENIED')
+      if (reg.status !== 'holding') throw new HttpsError('failed-precondition', 'INVALID_STATUS')
+
+      const paymentsCol = db.collection('payments')
+      const paymentRef = paymentsCol.doc()
+      const depositAmount = Number.isFinite(amount) ? Number(amount) : 100
+      await paymentRef.set({
+        id: paymentRef.id,
+        parentId: uid,
+        registrationPath: regRef.path,
+        amount: depositAmount,
+        currency: 'USD',
+        status: 'authorized',
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      })
+
+      return { ok: true, paymentId: paymentRef.id }
+    } catch (err) {
+      captureException(err, { function: 'initiateDeposit' })
+      throw err
+    }
+  },
+)
+
 // Optional: release expired holds (sweeper)
 export const releaseExpiredHolds = onCall<{
   year: number

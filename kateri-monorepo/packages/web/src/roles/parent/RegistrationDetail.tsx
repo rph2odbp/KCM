@@ -35,6 +35,8 @@ export default function RegistrationDetail() {
   const [sessionName, setSessionName] = useState('')
   const [reholdStatus, setReholdStatus] = useState('')
   const [reholding, setReholding] = useState(false)
+  const [paying, setPaying] = useState(false)
+  const [payStatus, setPayStatus] = useState('')
 
   useEffect(() => {
     const run = async () => {
@@ -231,6 +233,80 @@ export default function RegistrationDetail() {
               Start forms
             </button>
           </div>
+          {data.status === 'holding' && (
+            <div style={{ marginTop: 12, padding: 8, border: '1px solid #e5e7eb' }}>
+              <h4>Payment</h4>
+              <p style={{ margin: '6px 0' }}>
+                To confirm your seat, pay the deposit now. This stub will mark the deposit as
+                authorized and confirm your registration.
+              </p>
+              <button
+                type="button"
+                className="btn"
+                disabled={paying}
+                onClick={async () => {
+                  if (!data) return
+                  setPaying(true)
+                  setPayStatus('Authorizing deposit…')
+                  try {
+                    const init = httpsCallable(
+                      functions,
+                      'initiateDeposit',
+                    ) as unknown as (
+                      input: {
+                        year: number
+                        gender: 'boys' | 'girls'
+                        sessionId: string
+                        registrationId: string
+                        amount?: number
+                      },
+                    ) => Promise<{ data: { ok: boolean; paymentId?: string } }>
+                    const r1 = await init({
+                      year: data.year,
+                      gender: (gender as 'boys' | 'girls') || 'boys',
+                      sessionId: data.sessionId,
+                      registrationId: data.id,
+                    })
+                    if (!r1.data?.ok) throw new Error('Deposit authorization failed')
+
+                    setPayStatus('Confirming registration…')
+                    const confirm = httpsCallable(
+                      functions,
+                      'confirmRegistration',
+                    ) as unknown as (
+                      input: {
+                        year: number
+                        gender: 'boys' | 'girls'
+                        sessionId: string
+                        registrationId: string
+                        depositSuccess: boolean
+                      },
+                    ) => Promise<{ data: { ok: boolean } }>
+                    const r2 = await confirm({
+                      year: data.year,
+                      gender: (gender as 'boys' | 'girls') || 'boys',
+                      sessionId: data.sessionId,
+                      registrationId: data.id,
+                      depositSuccess: true,
+                    })
+                    if (!r2.data?.ok) throw new Error('Confirmation failed')
+
+                    setPayStatus('Payment complete!')
+                    navigate('/parent', { state: { justCreated: true } })
+                  } catch (e) {
+                    setPayStatus(`Payment error: ${(e as Error).message}`)
+                  } finally {
+                    setPaying(false)
+                  }
+                }}
+              >
+                Pay deposit
+              </button>
+              <span style={{ marginLeft: 8 }} aria-live="polite">
+                {payStatus}
+              </span>
+            </div>
+          )}
         </div>
       )}
     </section>

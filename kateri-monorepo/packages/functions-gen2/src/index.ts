@@ -17,6 +17,7 @@ export {
   ensureSessionCountersDaily,
   getSessionHoldsSummary,
 } from './register'
+export { initiateDeposit } from './payments'
 
 // Initialize Sentry lazily (env or secret)
 ensureSentryInitialized()

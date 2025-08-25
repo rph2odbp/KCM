@@ -76,11 +76,10 @@ service cloud.firestore {
 
     // Payment records - sensitive financial data
     match /payments/{paymentId} {
-      // Guardians can only see their own payments
-      allow read: if isOwner(resource.data.guardianId);
-      
-      // Admins manage payments; baseline staff cannot read others' financials
-      allow read, write: if hasUserRole('admin');
+  // Parents can see their own payments
+  allow read: if isOwner(resource.data.parentId);
+  // Admins manage payments; baseline staff cannot write
+  allow read, write: if hasUserRole('admin');
     }
 
     // Reports and analytics - restricted to staff
