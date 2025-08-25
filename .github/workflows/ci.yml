@@ -37,9 +37,9 @@ jobs:
             kateri-monorepo/.yarn/cache
           key: ${{ runner.os }}-yarn4-${{ hashFiles('kateri-monorepo/yarn.lock') }}
 
-      - name: Install dependencies (non-immutable)
+      - name: Install dependencies (immutable)
         working-directory: kateri-monorepo
-        run: corepack yarn install
+        run: corepack yarn install --immutable
 
       - name: Typecheck all workspaces
         working-directory: kateri-monorepo
