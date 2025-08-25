@@ -230,6 +230,17 @@ jobs:
             --non-interactive \
             --debug
 
+      - name: Verify required callables exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Checking that required callable functions are deployed..."
+          OUT=$(yarn dlx firebase-tools@13.29.0 functions:list --project "$PROJECT_ID" --json)
+          echo "$OUT" | head -c 2000 || true
+          echo "$OUT" | grep -q 'startRegistration' || { echo 'startRegistration missing after deploy'; exit 1; }
+          echo "$OUT" | grep -q 'confirmRegistration' || { echo 'confirmRegistration missing after deploy'; exit 1; }
+          echo "All required callables present."
+
       - name: List deployed functions
         if: always()
         run: |

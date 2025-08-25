@@ -41,7 +41,7 @@ function App() {
 
             <main className="container">
               <Routes>
-                <Route path="/" element={<LandingOrDashboard />} />
+                <Route path="/" element={<RoleAwareLanding />} />
                 <Route path="/login" element={<Login />} />
                 <Route
                   path="/roles"
@@ -163,35 +163,18 @@ function App() {
   )
 }
 
-function LandingOrDashboard() {
-  const { user, loading } = useAuth()
+function RoleAwareLanding() {
+  const { user, loading, currentRole, rolesReady } = useAuth()
   if (loading) return <div>Loading...</div>
   if (!user) return <Navigate to="/login" replace />
-  return <Home />
-}
-
-function Home() {
-  return (
-    <section>
-      <h2>Dashboard</h2>
-      <p>
-        Welcome to the KCM dashboard. This is where camp administrators can manage core camp
-        operations.
-      </p>
-      <ul>
-        <li>Camper registration and rosters</li>
-        <li>Medical administration records (MAR)</li>
-        <li>Payment processing with Adyen</li>
-        <li>Photo galleries with permission controls</li>
-        <li>Reports and analytics</li>
-        <li>AI-powered features</li>
-      </ul>
-      <p>
-        <strong>Status:</strong>{' '}
-        {import.meta.env.VITE_APP_ENV === 'staging' ? 'Staging environment' : 'Production'}
-      </p>
-    </section>
-  )
+  // Fast-path: if we already have a selected role, go straight there
+  if (currentRole === 'parent') return <Navigate to="/parent" replace />
+  if (currentRole === 'staff') return <Navigate to="/staff" replace />
+  if (currentRole === 'admin') return <Navigate to="/admin" replace />
+  // While resolving roles from profile, show a neutral loader (avoid flashing admin copy)
+  if (!rolesReady) return <div>Loading your panel…</div>
+  // If roles are resolved but none selected, send user to role selector
+  return <Navigate to="/roles" replace />
 }
 
 function CampersPage() {
