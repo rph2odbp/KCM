@@ -5,16 +5,16 @@ __metadata:
   version: 8
   cacheKey: 10c0
 
-"@adyen/api-library@npm:^15.1.0":
-  version: 15.1.0
-  resolution: "@adyen/api-library@npm:15.1.0"
+"@adyen/api-library@npm:^29.0.0":
+  version: 29.0.0
+  resolution: "@adyen/api-library@npm:29.0.0"
   dependencies:
-    "@types/node": "npm:14.18.63"
+    "@types/node": "npm:18.19.69"
     https-proxy-agent: "npm:5.0.1"
   dependenciesMeta:
     "@types/node":
       optional: true
-  checksum: 10c0/089a15e2e0732da107d9368d2d8fd9234f365d62c5a2537b4990ead2284aaf95c6e6d722a7a14847e300dd652497bf12acd08749ac990ac37ce4e7a40bea8186
+  checksum: 10c0/241d655c5c300b574541f1f639982ae85b6a4ab4d56fe21bbeafd83979831de62f280d0a92735398e411585175f3911ed6a1b43e6ea572886e871ae6a047a136
   languageName: node
   linkType: hard
 
@@ -2004,7 +2004,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@kateri/functions@workspace:packages/functions"
   dependencies:
-    "@adyen/api-library": "npm:^15.1.0"
+    "@adyen/api-library": "npm:^29.0.0"
     "@types/cors": "npm:^2.8.19"
     "@types/jest": "npm:^29.5.12"
     "@types/node": "npm:^24.3.0"
@@ -3362,10 +3362,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:14.18.63":
-  version: 14.18.63
-  resolution: "@types/node@npm:14.18.63"
-  checksum: 10c0/626a371419a6a0e11ca460b22bb4894abe5d75c303739588bc96267e380aa8b90ba5a87bc552400584f0ac2a84b5c458dadcbcf0dfd2396ebeb765f7a7f95893
+"@types/node@npm:18.19.69":
+  version: 18.19.69
+  resolution: "@types/node@npm:18.19.69"
+  dependencies:
+    undici-types: "npm:~5.26.4"
+  checksum: 10c0/f10ae0d07bde6b80c02702ecd470c0f710cc2fde48d8cea4140cb7d7715c0b944ca5d9b730e4b56ba9d96f1eb459739da71c54e88586fc6b911600ea1e70af4e
   languageName: node
   linkType: hard
 
@@ -13149,6 +13151,13 @@ __metadata:
     has-symbols: "npm:^1.1.0"
     which-boxed-primitive: "npm:^1.1.1"
   checksum: 10c0/7dbd35ab02b0e05fe07136c72cb9355091242455473ec15057c11430129bab38b7b3624019b8778d02a881c13de44d63cd02d122ee782fb519e1de7775b5b982
+  languageName: node
+  linkType: hard
+
+"undici-types@npm:~5.26.4":
+  version: 5.26.5
+  resolution: "undici-types@npm:5.26.5"
+  checksum: 10c0/bb673d7876c2d411b6eb6c560e0c571eef4a01c1c19925175d16e3a30c4c428181fb8d7ae802a261f283e4166a0ac435e2f505743aa9e45d893f9a3df017b501
   languageName: node
   linkType: hard
 
