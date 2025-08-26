@@ -75,12 +75,10 @@ export default function RegistrationForms() {
         const ug = (uSnap.exists() ? (uSnap.data() as any).secondGuardian : undefined) as
           | SecondGuardian
           | undefined
-        if (ug) setSecondGuardian({
-          fullName: ug.fullName || '',
-          email: ug.email || '',
-          phone: ug.phone || '',
-          address: ug.address || '',
-        })
+        if (ug) {
+          const { fullName = '', email = '', phone = '', address = '' } = ug
+          setSecondGuardian({ fullName, email, phone, address })
+        }
 
         // 3) Load camper
         const cRef = doc(db, 'campers', r.camperId)
@@ -90,7 +88,11 @@ export default function RegistrationForms() {
           setSchool(c.school || '')
           setPhotoPath(c.photoPath || '')
           const ec = Array.isArray(c.emergencyContacts) ? c.emergencyContacts : []
-          setContacts(ec.length ? ec.slice(0, 2) : [{ name: '', relationship: '', phoneNumber: '', email: '' }])
+          setContacts(
+            ec.length
+              ? ec.slice(0, 2)
+              : [{ name: '', relationship: '', phoneNumber: '', email: '' }],
+          )
           const m = c.medicalInfo || {}
           setAllergies(Array.isArray(m.allergies) ? m.allergies : [])
           setDietary(Array.isArray(m.dietaryRestrictions) ? m.dietaryRestrictions : [])
@@ -116,20 +118,14 @@ export default function RegistrationForms() {
   const saveGuardian = async () => {
     if (!user) return
     setStatus('Saving guardian…')
-    await setDoc(
-      doc(db, 'users', user.uid),
-      { secondGuardian: secondGuardian },
-      { merge: true },
-    )
+    await setDoc(doc(db, 'users', user.uid), { secondGuardian }, { merge: true })
     setStatus('Guardian saved')
   }
 
   const saveCamper = async () => {
     if (!user || !camperId) return
     setStatus('Saving camper…')
-    const ec = contacts
-      .filter(c => c.name && c.relationship && c.phoneNumber)
-      .slice(0, 2)
+    const ec = contacts.filter(c => c.name && c.relationship && c.phoneNumber).slice(0, 2)
     let uploadedPhotoPath = photoPath
     if (photoFile && user) {
       const fname = `camper-photo-${Date.now()}-${photoFile.name}`
@@ -242,34 +238,89 @@ export default function RegistrationForms() {
           <div style={{ marginTop: 8 }}>
             <label>
               Upload Camper Photo (image)
-              <input type="file" accept="image/*" onChange={e => setPhotoFile(e.target.files?.[0] || null)} />
+              <input
+                type="file"
+                accept="image/*"
+                onChange={e => setPhotoFile(e.target.files?.[0] || null)}
+              />
             </label>
             {photoPath && <div style={{ fontSize: 12, color: '#555' }}>Saved: {photoPath}</div>}
           </div>
           <div style={{ marginTop: 8 }}>
             <strong>Emergency Contacts (up to 2)</strong>
             {contacts.map((c, i) => (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: 8, marginTop: 6 }}>
-                <input placeholder="Name" value={c.name} onChange={e => {
-                  const next = contacts.slice(); next[i] = { ...c, name: e.target.value }; setContacts(next)
-                }} />
-                <input placeholder="Relationship" value={c.relationship} onChange={e => {
-                  const next = contacts.slice(); next[i] = { ...c, relationship: e.target.value }; setContacts(next)
-                }} />
-                <input placeholder="Phone" value={c.phoneNumber} onChange={e => {
-                  const next = contacts.slice(); next[i] = { ...c, phoneNumber: e.target.value }; setContacts(next)
-                }} />
-                <input placeholder="Email (optional)" value={c.email || ''} onChange={e => {
-                  const next = contacts.slice(); next[i] = { ...c, email: e.target.value }; setContacts(next)
-                }} />
-                <button onClick={() => {
-                  const next = contacts.slice(); next.splice(i, 1); setContacts(next.length ? next : [{ name: '', relationship: '', phoneNumber: '', email: '' }])
-                }}>Remove</button>
+              <div
+                key={i}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr 1fr 1fr auto',
+                  gap: 8,
+                  marginTop: 6,
+                }}
+              >
+                <input
+                  placeholder="Name"
+                  value={c.name}
+                  onChange={e => {
+                    const next = contacts.slice()
+                    next[i] = { ...c, name: e.target.value }
+                    setContacts(next)
+                  }}
+                />
+                <input
+                  placeholder="Relationship"
+                  value={c.relationship}
+                  onChange={e => {
+                    const next = contacts.slice()
+                    next[i] = { ...c, relationship: e.target.value }
+                    setContacts(next)
+                  }}
+                />
+                <input
+                  placeholder="Phone"
+                  value={c.phoneNumber}
+                  onChange={e => {
+                    const next = contacts.slice()
+                    next[i] = { ...c, phoneNumber: e.target.value }
+                    setContacts(next)
+                  }}
+                />
+                <input
+                  placeholder="Email (optional)"
+                  value={c.email || ''}
+                  onChange={e => {
+                    const next = contacts.slice()
+                    next[i] = { ...c, email: e.target.value }
+                    setContacts(next)
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    const next = contacts.slice()
+                    next.splice(i, 1)
+                    setContacts(
+                      next.length
+                        ? next
+                        : [{ name: '', relationship: '', phoneNumber: '', email: '' }],
+                    )
+                  }}
+                >
+                  Remove
+                </button>
               </div>
             ))}
             {contacts.length < 2 && (
               <div style={{ marginTop: 6 }}>
-                <button onClick={() => setContacts([...contacts, { name: '', relationship: '', phoneNumber: '', email: '' }])}>Add Contact</button>
+                <button
+                  onClick={() =>
+                    setContacts([
+                      ...contacts,
+                      { name: '', relationship: '', phoneNumber: '', email: '' },
+                    ])
+                  }
+                >
+                  Add Contact
+                </button>
               </div>
             )}
           </div>
@@ -282,12 +333,25 @@ export default function RegistrationForms() {
       <details>
         <summary style={{ fontWeight: 700 }}>3) Health</summary>
         <div style={{ paddingLeft: 12 }}>
-          <BoolRow label="My child is able to swim without assistance." value={canSwim} onChange={setCanSwim} />
-          <BoolRow label="I give permission for camp staff to apply sunscreen to my child as needed." value={allowSunscreen} onChange={setAllowSunscreen} />
+          <BoolRow
+            label="My child is able to swim without assistance."
+            value={canSwim}
+            onChange={setCanSwim}
+          />
+          <BoolRow
+            label="I give permission for camp staff to apply sunscreen to my child as needed."
+            value={allowSunscreen}
+            onChange={setAllowSunscreen}
+          />
 
           <MultiList title="Allergies" items={allergies} setItems={setAllergies} />
           <MultiList title="Dietary Restrictions" items={dietary} setItems={setDietary} />
-          <MultiList title="Medications" items={medications} setItems={setMedications} placeholder="Name, dosage, frequency" />
+          <MultiList
+            title="Medications"
+            items={medications}
+            setItems={setMedications}
+            placeholder="Name, dosage, frequency"
+          />
           <MultiList title="Medical Conditions" items={conditions} setItems={setConditions} />
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -303,7 +367,10 @@ export default function RegistrationForms() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <label>
               Insurance Provider
-              <input value={insuranceProvider} onChange={e => setInsuranceProvider(e.target.value)} />
+              <input
+                value={insuranceProvider}
+                onChange={e => setInsuranceProvider(e.target.value)}
+              />
             </label>
             <label>
               Policy Number
@@ -313,7 +380,11 @@ export default function RegistrationForms() {
           <div style={{ marginTop: 8 }}>
             <label>
               Upload Health Insurance Card (image/PDF)
-              <input type="file" accept="image/*,application/pdf" onChange={e => setInsuranceFile(e.target.files?.[0] || null)} />
+              <input
+                type="file"
+                accept="image/*,application/pdf"
+                onChange={e => setInsuranceFile(e.target.files?.[0] || null)}
+              />
             </label>
             {insuranceCardPath && (
               <div style={{ fontSize: 12, color: '#555' }}>Saved: {insuranceCardPath}</div>
@@ -326,7 +397,9 @@ export default function RegistrationForms() {
       </details>
 
       <div style={{ marginTop: 16 }}>
-        <Link to={`/parent/registration/${year}/${gender}/${encodeURIComponent(String(sessionId))}/${regId}`}>
+        <Link
+          to={`/parent/registration/${year}/${gender}/${encodeURIComponent(String(sessionId))}/${regId}`}
+        >
           ← Back to Registration Details
         </Link>
       </div>
@@ -334,7 +407,15 @@ export default function RegistrationForms() {
   )
 }
 
-function BoolRow({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
+function BoolRow({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: boolean
+  onChange: (v: boolean) => void
+}) {
   return (
     <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
       <input type="checkbox" checked={value} onChange={e => onChange(e.target.checked)} /> {label}
@@ -367,9 +448,15 @@ function MultiList({
               setItems(next)
             }}
           />
-          <button onClick={() => {
-            const next = items.slice(); next.splice(i, 1); setItems(next)
-          }}>Remove</button>
+          <button
+            onClick={() => {
+              const next = items.slice()
+              next.splice(i, 1)
+              setItems(next)
+            }}
+          >
+            Remove
+          </button>
         </div>
       ))}
       <div style={{ marginTop: 6 }}>
