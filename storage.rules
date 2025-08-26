@@ -33,6 +33,13 @@ service firebase.storage {
       return isAuthenticated() &&
         get(/databases/(default)/documents/campers/$(camperId)).data.parentId == request.auth.uid;
     }
+
+    // Camper photos (parent-owned); Path: photos/{guardianId}/{camperId}/{filename}
+    match /photos/{guardianId}/{camperId}/{filename} {
+      allow read, write: if isAuthenticated() && guardianId == request.auth.uid && isParentOf(camperId);
+      // Admins and hired staff may read for roster use
+      allow read: if hasRole('admin') || hasRole('staff_hired');
+    }
     match /medical/{guardianId}/{camperId}/{document} {
       // Parent of camper can upload/read their own child's docs (e.g., insurance card)
       allow read, write: if isAuthenticated() && guardianId == request.auth.uid && isParentOf(camperId);

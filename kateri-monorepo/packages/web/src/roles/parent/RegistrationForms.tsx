@@ -31,6 +31,8 @@ export default function RegistrationForms() {
   const [contacts, setContacts] = useState<
     Array<{ name: string; relationship: string; phoneNumber: string; email?: string }>
   >([{ name: '', relationship: '', phoneNumber: '', email: '' }])
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [photoPath, setPhotoPath] = useState('')
 
   // Health
   const [allergies, setAllergies] = useState<string[]>([])
@@ -86,6 +88,7 @@ export default function RegistrationForms() {
         if (cSnap.exists()) {
           const c = cSnap.data() as any
           setSchool(c.school || '')
+          setPhotoPath(c.photoPath || '')
           const ec = Array.isArray(c.emergencyContacts) ? c.emergencyContacts : []
           setContacts(ec.length ? ec.slice(0, 2) : [{ name: '', relationship: '', phoneNumber: '', email: '' }])
           const m = c.medicalInfo || {}
@@ -127,10 +130,21 @@ export default function RegistrationForms() {
     const ec = contacts
       .filter(c => c.name && c.relationship && c.phoneNumber)
       .slice(0, 2)
+    let uploadedPhotoPath = photoPath
+    if (photoFile && user) {
+      const fname = `camper-photo-${Date.now()}-${photoFile.name}`
+      const path = `photos/${user.uid}/${camperId}/${fname}`
+      const r = ref(storage, path)
+      await uploadBytes(r, photoFile)
+      uploadedPhotoPath = path
+    }
     await updateDoc(doc(db, 'campers', camperId), {
       school: school || '',
       emergencyContacts: ec,
+      photoPath: uploadedPhotoPath || '',
     })
+    setPhotoFile(null)
+    setPhotoPath(uploadedPhotoPath)
     setStatus('Camper saved')
   }
 
@@ -225,6 +239,13 @@ export default function RegistrationForms() {
             School
             <input value={school} onChange={e => setSchool(e.target.value)} />
           </label>
+          <div style={{ marginTop: 8 }}>
+            <label>
+              Upload Camper Photo (image)
+              <input type="file" accept="image/*" onChange={e => setPhotoFile(e.target.files?.[0] || null)} />
+            </label>
+            {photoPath && <div style={{ fontSize: 12, color: '#555' }}>Saved: {photoPath}</div>}
+          </div>
           <div style={{ marginTop: 8 }}>
             <strong>Emergency Contacts (up to 2)</strong>
             {contacts.map((c, i) => (

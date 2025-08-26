@@ -46,6 +46,8 @@ export const CamperSchema = z
     gradeCompleted: z.number().int().min(2).max(8), // must be 2–8 before camp
     // School info (requested)
     school: z.string().optional(),
+  // Optional camper profile photo (Firebase Storage path)
+  photoPath: z.string().optional(),
     emergencyContacts: z.array(
       z.object({
         name: z.string().min(1),

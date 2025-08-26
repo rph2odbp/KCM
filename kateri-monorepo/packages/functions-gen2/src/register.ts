@@ -77,6 +77,7 @@ export const createRegistration = onCall<CreateRegistrationInput>(
           gradeCompleted: camper.gradeCompleted,
           emergencyContacts: [],
           school: '',
+          photoPath: '',
           registrationStatus: 'pending',
           medicalInfo: {
             allergies: [],
