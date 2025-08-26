@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useParams, useNavigate } from 'react-router-dom'
-import { doc, getDoc, Timestamp } from 'firebase/firestore'
+import { doc, getDoc, Timestamp, collection, getDocs, query, where, orderBy, limit as qlimit } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
 import { functions } from '../../firebase'
 import { db } from '../../firebase'
+import { useAuth } from '../../auth'
 
 type RegData = {
   id: string
@@ -30,6 +31,7 @@ export default function RegistrationDetail() {
   const { year, gender, sessionId, regId } = useParams()
   const navigate = useNavigate()
   const location = useLocation() as { state?: { justCreated?: boolean } }
+  const { user } = useAuth()
   const [status, setStatus] = useState('')
   const [data, setData] = useState<RegData | null>(null)
   const [sessionName, setSessionName] = useState('')
@@ -37,6 +39,8 @@ export default function RegistrationDetail() {
   const [reholding, setReholding] = useState(false)
   const [paying, setPaying] = useState(false)
   const [payStatus, setPayStatus] = useState('')
+  const [paymentId, setPaymentId] = useState<string>('')
+  const [paymentSummary, setPaymentSummary] = useState<{ status?: string; amount?: number } | null>(null)
 
   useEffect(() => {
     const run = async () => {
@@ -74,12 +78,34 @@ export default function RegistrationDetail() {
         } else {
           setSessionName(sessionId)
         }
+        // Fetch latest payment for this registration (owned by current user)
+        if (user) {
+          try {
+            const paysCol = collection(db, 'payments')
+            const qy = query(
+              paysCol,
+              where('parentId', '==', user.uid),
+              where('registrationId', '==', regId),
+              orderBy('updatedAt', 'desc'),
+              qlimit(1),
+            )
+            const pSnap = await getDocs(qy)
+            if (!pSnap.empty) {
+              const p = pSnap.docs[0]
+              const pd = p.data() as Partial<{ status: string; amount: number }>
+              setPaymentId(p.id)
+              setPaymentSummary({ status: pd.status, amount: pd.amount })
+            }
+          } catch {
+            /* ignore */
+          }
+        }
       } catch (e) {
         setStatus(`Failed to load registration: ${(e as Error).message}`)
       }
     }
     void run()
-  }, [year, gender, sessionId, regId])
+  }, [year, gender, sessionId, regId, user])
 
   const showBanner = data && (data.status === 'holding' || data.status === 'expired')
   const isExpired = data && data.status === 'expired'
@@ -268,6 +294,7 @@ export default function RegistrationDetail() {
                       registrationId: data.id,
                     })
                     if (!r1.data?.ok) throw new Error('Deposit authorization failed')
+                    if (r1.data.paymentId) setPaymentId(r1.data.paymentId)
 
                     setPayStatus('Confirming registration…')
                     const confirm = httpsCallable(
@@ -292,7 +319,8 @@ export default function RegistrationDetail() {
                     if (!r2.data?.ok) throw new Error('Confirmation failed')
 
                     setPayStatus('Payment complete!')
-                    navigate('/parent', { state: { justCreated: true } })
+                    // Keep user here and show a receipt link; optionally navigate
+                    // navigate('/parent', { state: { justCreated: true } })
                   } catch (e) {
                     setPayStatus(`Payment error: ${(e as Error).message}`)
                   } finally {
@@ -305,6 +333,17 @@ export default function RegistrationDetail() {
               <span style={{ marginLeft: 8 }} aria-live="polite">
                 {payStatus}
               </span>
+              {paymentId && (
+                <div style={{ marginTop: 8 }}>
+                  <Link to={`/parent/payment/${paymentId}`}>View receipt</Link>
+                  {paymentSummary && (
+                    <span style={{ marginLeft: 8, color: '#555' }}>
+                      {paymentSummary.status}
+                      {typeof paymentSummary.amount === 'number' ? ` ($${paymentSummary.amount})` : ''}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

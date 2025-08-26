@@ -9,6 +9,7 @@ import ParentLanding from './roles/ParentLanding'
 import RegistrationDetail from './roles/parent/RegistrationDetail'
 import RegistrationStepper from './roles/parent/RegistrationStepper'
 import RegistrationFormsPlaceholder from './roles/parent/RegistrationFormsPlaceholder'
+import PaymentReceipt from './roles/parent/PaymentReceipt'
 import StaffLanding from './roles/StaffLanding'
 import AdminLanding from './roles/AdminLanding'
 
@@ -78,6 +79,16 @@ function App() {
                     <Protected>
                       <RoleProtected role="parent">
                         <RegistrationFormsPlaceholder />
+                      </RoleProtected>
+                    </Protected>
+                  }
+                />
+                <Route
+                  path="/parent/payment/:paymentId"
+                  element={
+                    <Protected>
+                      <RoleProtected role="parent">
+                        <PaymentReceipt />
                       </RoleProtected>
                     </Protected>
                   }

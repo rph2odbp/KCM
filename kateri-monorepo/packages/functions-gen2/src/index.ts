@@ -142,6 +142,9 @@ export const listMyRegistrations = onCall({ region: 'us-central1' }, async req =
       camperId: string
       status: string
       missing?: Record<string, string[]>
+  paymentStatus?: string
+  paymentAmount?: number
+  paymentId?: string
     }> = []
     const years = yearFilter
       ? [db.collection('sessions').doc(yearFilter)]
@@ -176,6 +179,28 @@ export const listMyRegistrations = onCall({ region: 'us-central1' }, async req =
         }
       }
     }
+    // Enrich with latest payment per registration for this user
+    const paymentsSnap = await db
+      .collection('payments')
+      .where('parentId', '==', uid)
+      .get()
+    const byReg: Record<string, { id?: string; status?: string; amount?: number; updatedAt?: unknown }> = {}
+    paymentsSnap.forEach(p => {
+      const d = p.data() as Partial<{ registrationId: string; status: string; amount: number; updatedAt: unknown }>
+      if (!d.registrationId) return
+      const prev = byReg[d.registrationId] || {}
+      // Prefer the latest updatedAt if present; otherwise overwrite; store id
+      const next = { id: p.id, status: d.status, amount: d.amount, updatedAt: d.updatedAt }
+      byReg[d.registrationId] = (d.updatedAt ? next : prev.updatedAt ? prev : next) as any
+    })
+    items.forEach(it => {
+      const pay = byReg[it.id]
+      if (pay) {
+        it.paymentStatus = String(pay.status || '')
+        it.paymentAmount = typeof pay.amount === 'number' ? Number(pay.amount) : undefined
+        it.paymentId = String(pay.id || '')
+      }
+    })
     logger.info('listMyRegistrations scanned', { uid, count: items.length, year: yearFilter })
     return { ok: true, data: items }
   } catch (err) {

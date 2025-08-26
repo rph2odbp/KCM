@@ -146,6 +146,9 @@ function ManageRegistrations() {
       camperId: string
       status: string
       missing?: Record<string, string[]>
+  paymentStatus?: string
+  paymentAmount?: number
+  paymentId?: string
     }>
   >([])
   const [status, setStatus] = useState('')
@@ -194,7 +197,7 @@ function ManageRegistrations() {
           <input
             type="number"
             value={year}
-            onChange={e => {
+            onChange={(e: { target: { value: string } }) => {
               const v = e.target.value
               setYear(v === '' ? '' : parseInt(v))
             }}
@@ -213,6 +216,7 @@ function ManageRegistrations() {
             <th>Camper</th>
             <th>Status</th>
             <th>Missing</th>
+            <th>Payment</th>
             <th>Action</th>
           </tr>
         </thead>
@@ -236,6 +240,17 @@ function ManageRegistrations() {
                         .map(([k, v]) => `${k}: ${v.join(', ')}`)
                         .join(' | ')
                     : ''}
+                </td>
+                <td>
+                  {r.paymentStatus
+                    ? `${r.paymentStatus}${r.paymentAmount ? ` ($${r.paymentAmount})` : ''}`
+                    : ''}
+                  {r.paymentId && (
+                    <span>
+                      {' '}
+                      <Link to={`/parent/payment/${r.paymentId}`}>View receipt</Link>
+                    </span>
+                  )}
                 </td>
                 <td>
                   <Link to={resumeHref}>Resume</Link>
