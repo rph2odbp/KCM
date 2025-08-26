@@ -27,13 +27,17 @@ service firebase.storage {
       allow read: if hasRole('staff') || hasRole('admin') || hasRole('guardian');
     }
 
-    // Medical documents - highly restricted
-    // Path: medical/{guardianId}/{camperId}/{filename}
+  // Medical documents - highly restricted
+  // Path: medical/{guardianId}/{camperId}/{filename}
+    function isParentOf(camperId) {
+      return isAuthenticated() &&
+        get(/databases/(default)/documents/campers/$(camperId)).data.parentId == request.auth.uid;
+    }
     match /medical/{guardianId}/{camperId}/{document} {
-      // Parent uploads under their own uid namespace
-      allow write: if isAuthenticated() && request.auth.uid == guardianId;
-      // Parent can read their own uploads; medics/admins can read for care
-      allow read: if (isAuthenticated() && request.auth.uid == guardianId) || hasRole('medic') || hasRole('admin');
+      // Parent of camper can upload/read their own child's docs (e.g., insurance card)
+      allow read, write: if isAuthenticated() && guardianId == request.auth.uid && isParentOf(camperId);
+      // Medics and admins can access for care
+      allow read: if hasRole('medic') || hasRole('admin');
     }
 
     // User profile images

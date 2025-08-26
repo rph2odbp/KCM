@@ -16,7 +16,6 @@ export {
   sweepExpiredHoldsV2,
   ensureSessionCountersDaily,
   getSessionHoldsSummary,
-  markRegistrationSectionComplete,
 } from './register'
 export { initiateDeposit } from './payments'
 

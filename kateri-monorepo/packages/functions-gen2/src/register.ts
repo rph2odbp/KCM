@@ -409,58 +409,6 @@ export const confirmRegistration = onCall<ConfirmInput>(
   },
 )
 
-type MarkSectionInput = {
-  year: number
-  gender: 'boys' | 'girls'
-  sessionId: string
-  registrationId: string
-  section: 'parent' | 'camper' | 'health' | 'consents'
-  completed?: boolean
-}
-
-// Mark a registration form section as complete for the current user
-export const markRegistrationSectionComplete = onCall<MarkSectionInput>(
-  { region: 'us-central1', invoker: 'public', secrets: [SENTRY_DSN_SECRET] },
-  async request => {
-    const uid = request.auth?.uid
-    if (!uid) throw new HttpsError('unauthenticated', 'UNAUTHENTICATED')
-    try {
-      const { year, gender, sessionId, registrationId, section, completed } =
-        (request.data || {}) as MarkSectionInput
-      if (!year || !gender || !sessionId || !registrationId || !section)
-        throw new HttpsError('invalid-argument', 'INVALID_ARGUMENT')
-      if (!['boys', 'girls'].includes(gender))
-        throw new HttpsError('invalid-argument', 'INVALID_GENDER')
-      if (!['parent', 'camper', 'health', 'consents'].includes(section))
-        throw new HttpsError('invalid-argument', 'INVALID_SECTION')
-
-      const regRef = db
-        .collection('sessions')
-        .doc(String(year))
-        .collection(gender)
-        .doc(sessionId)
-        .collection('registrations')
-        .doc(registrationId)
-      const regSnap = await regRef.get()
-      if (!regSnap.exists) throw new HttpsError('not-found', 'REGISTRATION_NOT_FOUND')
-      const data = regSnap.data() as Partial<{ parentId: string }>
-      if (data.parentId !== uid) throw new HttpsError('permission-denied', 'FORBIDDEN')
-
-      await regRef.set(
-        {
-          formCompletion: { [section]: completed === undefined ? true : Boolean(completed) },
-          updatedAt: FieldValue.serverTimestamp(),
-        },
-        { merge: true },
-      )
-      return { ok: true }
-    } catch (err) {
-      captureException(err, { function: 'markRegistrationSectionComplete' })
-      throw err
-    }
-  },
-)
-
 // Stubbed deposit initiation (to be replaced by real PSP integration)
 export const initiateDeposit = onCall<{
   year: number
