@@ -28,8 +28,12 @@ service firebase.storage {
     }
 
     // Medical documents - highly restricted
-    match /medical/{camperId}/{document} {
-      allow read, write: if hasRole('medic') || hasRole('admin');
+    // Path: medical/{guardianId}/{camperId}/{filename}
+    match /medical/{guardianId}/{camperId}/{document} {
+      // Parent uploads under their own uid namespace
+      allow write: if isAuthenticated() && request.auth.uid == guardianId;
+      // Parent can read their own uploads; medics/admins can read for care
+      allow read: if (isAuthenticated() && request.auth.uid == guardianId) || hasRole('medic') || hasRole('admin');
     }
 
     // User profile images

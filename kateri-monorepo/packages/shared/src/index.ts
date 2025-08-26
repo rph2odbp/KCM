@@ -44,6 +44,8 @@ export const CamperSchema = z
     parentId: UserIdSchema,
     gender: z.enum(['male', 'female']),
     gradeCompleted: z.number().int().min(2).max(8), // must be 2–8 before camp
+    // School info (requested)
+    school: z.string().optional(),
     emergencyContacts: z.array(
       z.object({
         name: z.string().min(1),
@@ -55,8 +57,16 @@ export const CamperSchema = z
     registrationStatus: z.enum(['pending', 'approved', 'rejected', 'cancelled']),
     medicalInfo: z.object({
       allergies: z.array(z.string()).default([]),
+      dietaryRestrictions: z.array(z.string()).default([]),
       medications: z.array(z.string()).default([]),
       conditions: z.array(z.string()).default([]),
+      canSwim: z.boolean().default(false),
+      allowSunscreen: z.boolean().default(true),
+  physicianName: z.string().optional(),
+  physicianPhone: z.string().optional(),
+      insuranceProvider: z.string().optional(),
+      policyNumber: z.string().optional(),
+      insuranceCardPath: z.string().optional(), // Firebase Storage path to uploaded card image/PDF
       additionalNotes: z.string().optional(),
     }),
   })
@@ -159,7 +169,7 @@ export const PaymentStatusSchema = z.enum([
 export const PaymentSchema = z
   .object({
     id: z.string().uuid(),
-    guardianId: UserIdSchema,
+  guardianId: UserIdSchema, // legacy name; equals parentId
     camperId: CamperIdSchema,
     amount: z.number().positive(),
     currency: z.string().default('USD'),

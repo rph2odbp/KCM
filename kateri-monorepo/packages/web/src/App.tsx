@@ -8,7 +8,7 @@ import Topbar from './components/Topbar'
 import ParentLanding from './roles/ParentLanding'
 import RegistrationDetail from './roles/parent/RegistrationDetail'
 import RegistrationStepper from './roles/parent/RegistrationStepper'
-import RegistrationFormsPlaceholder from './roles/parent/RegistrationFormsPlaceholder'
+import RegistrationForms from './roles/parent/RegistrationForms'
 import PaymentReceipt from './roles/parent/PaymentReceipt'
 import StaffLanding from './roles/StaffLanding'
 import AdminLanding from './roles/AdminLanding'
@@ -78,7 +78,7 @@ function App() {
                   element={
                     <Protected>
                       <RoleProtected role="parent">
-                        <RegistrationFormsPlaceholder />
+                        <RegistrationForms />
                       </RoleProtected>
                     </Protected>
                   }

@@ -50,6 +50,11 @@ export default function PaymentReceipt() {
   return (
     <section style={{ maxWidth: 720 }}>
       <h3>Payment Receipt</h3>
+      <div style={{ textAlign: 'right', marginBottom: 8 }}>
+        <button type="button" className="btn" onClick={() => window.print()}>
+          Print
+        </button>
+      </div>
       <div aria-live="polite" style={{ marginBottom: 8 }}>
         {status}
       </div>

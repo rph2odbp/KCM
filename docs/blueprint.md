@@ -225,20 +225,30 @@ Deployed
   - Email Address (required; valid email)
   - Primary Phone (required; valid 10-digit)
   - Mailing Address (required; non-empty)
-  - Emergency Contact Name (required; not same as guardian name)
-  - Emergency Contact Phone (required; valid 10-digit)
+  - Emergency Contacts (min 1, up to 2): { name, relationship, phone, email? }
+  - Optional Second Guardian for billing: { fullName, email, phone, address } — can be copied from profile; used for shared payment responsibility and communications.
 
 3. Camper Information (repeatable per child)
 
-- Fields: First Name (req), Last Name (req), Date of Birth (req; valid), T-Shirt Size (req; Youth S/M/L, Adult S/M/L/XL/XXL)
+- Fields: First Name (req), Last Name (req), Date of Birth (req; valid), School (optional), T-Shirt Size (req; Youth S/M/L, Adult S/M/L/XL/XXL)
 - Cabinmate request: up to two friends with fields {camperName, parentName, parentEmail}; requests require confirmation by those parents; store confirmation status on registration.
 
 4. Health (per camper)
 
-- Required radios with conditional textareas:
-  - Allergies? (Yes/No) → details required if Yes
-  - Dietary restrictions? (Yes/No) → details required if Yes
-  - Medications? (Yes/No) → details required if Yes (name, dosage, frequency)
+- Required radios with dynamic lists (add multiple items):
+
+  - Allergies? (Yes/No) → add one or more allergies
+  - Dietary restrictions? (Yes/No) → add one or more restrictions
+  - Medications? (Yes/No) → add medications (name, dosage, frequency)
+  - Medical conditions (non-allergy) → add one or more conditions
+  - Primary Physician (req), Physician Phone (req; 10-digit), Insurance Provider (req), Policy Number (req)
+  - Upload Health Insurance Card (image/PDF)
+
+  Exact wording to recover (parent-acknowledgment):
+
+  - Ability to swim: “My child is able to swim without assistance.” [Yes/No]
+  - Sunscreen: “I give permission for camp staff to apply sunscreen to my child as needed.” [Yes/No]
+
 - Primary Physician (req), Physician Phone (req; 10-digit), Insurance Provider (req), Policy Number (req)
 
 5. Consents (per camper)

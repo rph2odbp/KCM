@@ -23,10 +23,9 @@ service cloud.firestore {
     }
     
     function isParentOf(camperId) {
-      // TODO: Implement parent relationship check (guardian -> parent renaming)
-      // This should verify that the authenticated user is a parent of the specific camper
-  return isAuthenticated() &&
-     exists(/databases/$(database)/documents/guardianships/$(request.auth.uid + '_' + camperId));
+      // Parent relationship based on campers/{camperId}.parentId
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/campers/$(camperId)).data.parentId == request.auth.uid;
     }
 
     // User profiles - explicit create by owner to avoid any recursion on first write
@@ -38,10 +37,10 @@ service cloud.firestore {
 
     // Camper records - restricted access based on roles
     match /campers/{camperId} {
-  // Parents can only access their own campers
-  allow read, update, delete: if isParentOf(camperId);
-  // Allow parents to create their camper if they mark themselves as creator
-  allow create: if isAuthenticated() && request.resource.data.createdBy == request.auth.uid;
+      // Parents can only access their own campers
+      allow read, update, delete: if isParentOf(camperId);
+      // Allow parents to create their camper if they mark themselves as creator
+      allow create: if isAuthenticated() && request.resource.data.createdBy == request.auth.uid;
 
       // Hired staff (elevated) can read all campers; only admins can write
       allow read: if hasUserRole('staff_hired') || hasUserRole('admin');
