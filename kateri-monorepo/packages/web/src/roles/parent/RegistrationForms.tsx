@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { auth, db, storage, functions } from '../../firebase'
 import { httpsCallable } from 'firebase/functions'
@@ -16,6 +16,12 @@ export default function RegistrationForms() {
   const [formCompletion, setFormCompletion] = useState<
     Partial<{ parent: boolean; camper: boolean; health: boolean; consents: boolean }>
   >({})
+  const allDone = Boolean(
+    formCompletion.parent && formCompletion.camper && formCompletion.health && formCompletion.consents,
+  )
+  const guardianTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const camperTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const healthTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Guardian
   const [gFullName, setGFullName] = useState('')
@@ -128,14 +134,14 @@ export default function RegistrationForms() {
   const phoneDigits = (s: string) => (s || '').replace(/\D/g, '')
   const phoneOk = (s: string) => phoneDigits(s).length >= 10
 
-  const saveGuardian = async () => {
+  const saveGuardian = async (opts?: { silent?: boolean }) => {
     if (!uid) return
     // basic validation
     const parts = gFullName.trim().split(/\s+/)
     if (parts.length < 2) return setStatus('Please enter your full name (first and last).')
     if (!emailOk(gEmail)) return setStatus('Please enter a valid email.')
     if (!phoneOk(gPhone)) return setStatus('Please enter a valid 10-digit phone number.')
-    setStatus('Saving guardian…')
+    if (!opts?.silent) setStatus('Saving guardian…')
     const [firstName, ...rest] = gFullName.trim().split(' ')
     const lastName = rest.join(' ')
     const payload: any = {
@@ -157,16 +163,16 @@ export default function RegistrationForms() {
       payload.secondGuardian = null
     }
     await setDoc(doc(db, 'users', uid), payload, { merge: true })
-    // mark section complete
-    try {
+  // mark section complete
+  try {
       const call = httpsCallable(functions, 'markRegistrationSectionComplete')
       await call({ year: Number(year), gender, sessionId, registrationId: regId, section: 'parent' })
   setFormCompletion((fc: Partial<{ parent: boolean; camper: boolean; health: boolean; consents: boolean }>) => ({ ...fc, parent: true }))
     } catch {/* ignore */}
-    setStatus('Guardian saved')
+  if (!opts?.silent) setStatus('Guardian saved')
   }
 
-  const saveCamper = async () => {
+  const saveCamper = async (opts?: { silent?: boolean }) => {
     if (!camperId) return
     // require at least one contact
     const cleansed = contacts.filter((c: EmergencyContact) => c.name || c.relationship || c.phoneNumber)
@@ -174,7 +180,7 @@ export default function RegistrationForms() {
       return setStatus('Please add at least one emergency contact (name, relationship, phone).')
     if (!cleansed[0].name || !cleansed[0].relationship || !phoneOk(cleansed[0].phoneNumber || ''))
       return setStatus('First emergency contact requires name, relationship, and a valid phone number.')
-    setStatus('Saving camper…')
+    if (!opts?.silent) setStatus('Saving camper…')
     await setDoc(
       doc(db, 'campers', camperId),
       {
@@ -189,16 +195,16 @@ export default function RegistrationForms() {
       await call({ year: Number(year), gender, sessionId, registrationId: regId, section: 'camper' })
   setFormCompletion((fc: Partial<{ parent: boolean; camper: boolean; health: boolean; consents: boolean }>) => ({ ...fc, camper: true }))
     } catch {/* ignore */}
-    setStatus('Camper saved')
+  if (!opts?.silent) setStatus('Camper saved')
   }
 
-  const saveHealth = async () => {
+  const saveHealth = async (opts?: { silent?: boolean }) => {
     if (!camperId) return
     if (!physicianName) return setStatus('Please enter a primary physician name.')
     if (!phoneOk(physicianPhone)) return setStatus('Please enter a valid physician phone number.')
     if (!insuranceProvider) return setStatus('Please enter an insurance provider.')
     if (!policyNumber) return setStatus('Please enter a policy number.')
-    setStatus('Saving health…')
+    if (!opts?.silent) setStatus('Saving health…')
     let path = insurancePath
     if (insuranceFile) {
       const ext = (insuranceFile.name.split('.').pop() || 'bin').toLowerCase()
@@ -233,7 +239,7 @@ export default function RegistrationForms() {
       await call({ year: Number(year), gender, sessionId, registrationId: regId, section: 'health' })
   setFormCompletion((fc: Partial<{ parent: boolean; camper: boolean; health: boolean; consents: boolean }>) => ({ ...fc, health: true }))
     } catch {/* ignore */}
-    setStatus('Health saved')
+  if (!opts?.silent) setStatus('Health saved')
   }
 
   const saveConsents = async () => {
@@ -261,6 +267,44 @@ export default function RegistrationForms() {
     setStatus('Consents saved')
   }
 
+  // Debounced autosave — only when valid and not including file uploads
+  useEffect(() => {
+    if (!uid) return
+    if (guardianTimer.current) clearTimeout(guardianTimer.current)
+    guardianTimer.current = setTimeout(() => {
+      const parts = gFullName.trim().split(/\s+/)
+      if (parts.length >= 2 && emailOk(gEmail) && phoneOk(gPhone)) void saveGuardian({ silent: true })
+    }, 1500)
+    return () => {
+      if (guardianTimer.current) clearTimeout(guardianTimer.current)
+    }
+  }, [uid, gFullName, gEmail, gPhone, gAddress, secondGEnabled, g2FullName, g2Email, g2Phone, g2Address])
+
+  useEffect(() => {
+    if (!camperId) return
+    if (camperTimer.current) clearTimeout(camperTimer.current)
+    camperTimer.current = setTimeout(() => {
+      const first = contacts.find((c: EmergencyContact) => c && (c.name || c.relationship || c.phoneNumber))
+      if (first && first.name && first.relationship && phoneOk(first.phoneNumber || '')) void saveCamper({ silent: true })
+    }, 1500)
+    return () => {
+      if (camperTimer.current) clearTimeout(camperTimer.current)
+    }
+  }, [camperId, school, contacts])
+
+  useEffect(() => {
+    if (!camperId) return
+    // Skip autosave when a file is selected; require explicit save for uploads
+    if (insuranceFile) return
+    if (healthTimer.current) clearTimeout(healthTimer.current)
+    healthTimer.current = setTimeout(() => {
+      if (physicianName && phoneOk(physicianPhone) && insuranceProvider && policyNumber) void saveHealth({ silent: true })
+    }, 1500)
+    return () => {
+      if (healthTimer.current) clearTimeout(healthTimer.current)
+    }
+  }, [camperId, allergies, dietary, medications, conditions, canSwim, allowSunscreen, physicianName, physicianPhone, insuranceProvider, policyNumber, insuranceFile])
+
   // helpers handled inline where needed
 
   if (loading) return <div>Loading…</div>
@@ -268,6 +312,19 @@ export default function RegistrationForms() {
   return (
     <section style={{ maxWidth: 740 }}>
       <h3>Registration Forms</h3>
+      {allDone && (
+        <div style={{
+          padding: 8,
+          background: '#ecfdf5',
+          border: '1px solid #10b981',
+          margin: '8px 0',
+        }}>
+          All sections are complete. You can return to your registration to review or proceed.
+          <div style={{ marginTop: 8 }}>
+            <Link className="secondary" to={`/parent/registration/${year}/${gender}/${encodeURIComponent(sessionId!)}/${regId}`}>← Back to Registration</Link>
+          </div>
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 13, marginTop: 4 }}>
         <Badge label="Guardian" done={!!formCompletion.parent} />
         <Badge label="Camper" done={!!formCompletion.camper} />
@@ -285,14 +342,21 @@ export default function RegistrationForms() {
       <div className="field">
         <label>Full Name</label>
         <input value={gFullName} onChange={e => setGFullName(e.target.value)} />
+        {gFullName.trim().split(/\s+/).length < 2 && (
+          <small style={{ color: '#b91c1c' }}>Enter first and last name.</small>
+        )}
       </div>
       <div className="field">
         <label>Email</label>
         <input value={gEmail} onChange={e => setGEmail(e.target.value)} />
+        {gEmail && !emailOk(gEmail) && <small style={{ color: '#b91c1c' }}>Invalid email.</small>}
       </div>
       <div className="field">
         <label>Primary Phone</label>
         <input value={gPhone} onChange={e => setGPhone(e.target.value)} />
+        {gPhone && !phoneOk(gPhone) && (
+          <small style={{ color: '#b91c1c' }}>Enter at least 10 digits.</small>
+        )}
       </div>
       <div className="field">
         <label>Mailing Address</label>
@@ -348,6 +412,12 @@ export default function RegistrationForms() {
               const arr = [...contacts]; arr[i] = { ...c, email: e.target.value }; setContacts(arr)
             }} />
             <button onClick={() => setContacts(contacts.filter((_, j) => j !== i))}>Remove</button>
+            {i === 0 && (
+              <div style={{ gridColumn: '1 / span 5', fontSize: 12, color: '#b91c1c' }}>
+                {(!c.name || !c.relationship || !phoneOk(c.phoneNumber || '')) &&
+                  'First contact requires name, relationship, and a valid phone number.'}
+              </div>
+            )}
           </div>
         ))}
         {contacts.length < 2 && (
@@ -377,18 +447,24 @@ export default function RegistrationForms() {
       <div className="field">
         <label>Primary Physician</label>
         <input value={physicianName} onChange={e => setPhysicianName(e.target.value)} />
+        {!physicianName && <small style={{ color: '#b91c1c' }}>Required.</small>}
       </div>
       <div className="field">
         <label>Physician Phone</label>
         <input value={physicianPhone} onChange={e => setPhysicianPhone(e.target.value)} />
+        {physicianPhone && !phoneOk(physicianPhone) && (
+          <small style={{ color: '#b91c1c' }}>Enter at least 10 digits.</small>
+        )}
       </div>
       <div className="field">
         <label>Insurance Provider</label>
         <input value={insuranceProvider} onChange={e => setInsuranceProvider(e.target.value)} />
+        {!insuranceProvider && <small style={{ color: '#b91c1c' }}>Required.</small>}
       </div>
       <div className="field">
         <label>Policy Number</label>
         <input value={policyNumber} onChange={e => setPolicyNumber(e.target.value)} />
+        {!policyNumber && <small style={{ color: '#b91c1c' }}>Required.</small>}
       </div>
       <div className="field">
         <label>Upload Health Insurance Card (image/PDF)</label>
@@ -404,11 +480,15 @@ export default function RegistrationForms() {
   <h4>Consents</h4>
       <div style={{ display: 'grid', gap: 8 }}>
         <label><input type="checkbox" checked={consentMedical} onChange={e => setConsentMedical(e.target.checked)} /> Medical Release</label>
+        {!consentMedical && <small style={{ color: '#b91c1c' }}>Required.</small>}
         <label><input type="checkbox" checked={consentLiability} onChange={e => setConsentLiability(e.target.checked)} /> Liability Waiver</label>
+        {!consentLiability && <small style={{ color: '#b91c1c' }}>Required.</small>}
         <label><input type="checkbox" checked={consentPhoto} onChange={e => setConsentPhoto(e.target.checked)} /> Photo Release</label>
+        {!consentPhoto && <small style={{ color: '#b91c1c' }}>Required.</small>}
         <div className="field">
           <label>Guardian Signature (type full name)</label>
           <input value={signature} onChange={e => setSignature(e.target.value)} />
+          {!signature.trim() && <small style={{ color: '#b91c1c' }}>Required.</small>}
         </div>
       </div>
       <div style={{ marginBottom: 16 }}>
