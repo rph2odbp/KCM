@@ -7,24 +7,37 @@ import {
 } from '@firebase/rules-unit-testing'
 import { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore'
 import fs from 'node:fs'
-import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-let testEnv: RulesTestEnvironment
+let testEnv: RulesTestEnvironment | undefined
+const EMULATOR = process.env.FIRESTORE_EMULATOR_HOST // e.g. "127.0.0.1:8080"
+const SKIP = !EMULATOR
+const maybe = SKIP ? test.skip : test
 
 beforeAll(async () => {
+  if (SKIP) {
+    console.warn('Skipping rules tests: FIRESTORE_EMULATOR_HOST not set')
+    return
+  }
+  const rulesPath = fileURLToPath(new URL('../../../../firestore.rules', import.meta.url))
+  const [host, portStr] = (EMULATOR as string).split(':')
+  const port = Number(portStr || '8080')
   testEnv = await initializeTestEnvironment({
     projectId: 'kcm-firebase-b7d6a',
     firestore: {
-      rules: fs.readFileSync(path.resolve(__dirname, '../../../../firestore.rules'), 'utf8'),
+      host,
+      port,
+      rules: fs.readFileSync(rulesPath, 'utf8'),
     },
   })
 })
 
 afterAll(async () => {
-  await testEnv.cleanup()
+  if (testEnv) await testEnv.cleanup()
 })
 
-test('parent can read their own registration doc but not others', async () => {
+maybe('parent can read their own registration doc but not others', async () => {
+  if (!testEnv) throw new Error('Test environment not initialized')
   const admin = testEnv.unauthenticatedContext().firestore()
   const parentA = testEnv.authenticatedContext('parentA').firestore()
 
