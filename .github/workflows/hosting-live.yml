@@ -47,13 +47,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if yarn install --immutable; then
-            echo "Immutable install succeeded"
-          else
-            echo "Immutable install failed (likely lockfile drift). Falling back to non-immutable install to unblock deploy."
-            yarn install
-            echo "Note: Please commit updated kateri-monorepo/yarn.lock to keep CI immutable in the future."
-          fi
+          yarn install --immutable
 
       - name: Authenticate to Google Cloud (WIF)
         uses: google-github-actions/auth@v2
@@ -106,3 +100,14 @@ jobs:
             --project "$PROJECT_ID" \
             --non-interactive \
             --debug
+
+      - name: Smoke test deployed site
+        shell: bash
+        env:
+          HOSTING_URL: https://kcm-firebase-b7d6a.web.app
+        run: |
+          set -euo pipefail
+          echo "Fetching $HOSTING_URL"
+          html=$(curl -fsSL "$HOSTING_URL")
+          echo "$html" | grep -q "Kateri Camp Management"
+          echo "Smoke test passed: title found"

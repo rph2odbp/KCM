@@ -46,8 +46,8 @@ export const CamperSchema = z
     gradeCompleted: z.number().int().min(2).max(8), // must be 2–8 before camp
     // School info (requested)
     school: z.string().optional(),
-  // Optional camper profile photo (Firebase Storage path)
-  photoPath: z.string().optional(),
+    // Optional camper profile photo (Firebase Storage path)
+    photoPath: z.string().optional(),
     emergencyContacts: z.array(
       z.object({
         name: z.string().min(1),
@@ -60,12 +60,27 @@ export const CamperSchema = z
     medicalInfo: z.object({
       allergies: z.array(z.string()).default([]),
       dietaryRestrictions: z.array(z.string()).default([]),
-      medications: z.array(z.string()).default([]),
+      medications: z
+        .array(
+          z.object({
+            name: z.string().min(1).default(''),
+            dosage: z.string().default(''),
+            times: z.object({
+              breakfast: z.boolean().default(false),
+              lunch: z.boolean().default(false),
+              dinner: z.boolean().default(false),
+              beforeBed: z.boolean().default(false),
+              other: z.boolean().default(false),
+              otherText: z.string().optional(),
+            }),
+          }),
+        )
+        .default([]),
       conditions: z.array(z.string()).default([]),
       canSwim: z.boolean().default(false),
       allowSunscreen: z.boolean().default(true),
-  physicianName: z.string().optional(),
-  physicianPhone: z.string().optional(),
+      physicianName: z.string().optional(),
+      physicianPhone: z.string().optional(),
       insuranceProvider: z.string().optional(),
       policyNumber: z.string().optional(),
       insuranceCardPath: z.string().optional(), // Firebase Storage path to uploaded card image/PDF
@@ -171,7 +186,7 @@ export const PaymentStatusSchema = z.enum([
 export const PaymentSchema = z
   .object({
     id: z.string().uuid(),
-  guardianId: UserIdSchema, // legacy name; equals parentId
+    guardianId: UserIdSchema, // legacy name; equals parentId
     camperId: CamperIdSchema,
     amount: z.number().positive(),
     currency: z.string().default('USD'),

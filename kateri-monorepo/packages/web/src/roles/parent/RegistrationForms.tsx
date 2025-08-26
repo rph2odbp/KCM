@@ -23,7 +23,7 @@ type CamperDoc = {
   medicalInfo?: {
     allergies?: string[]
     dietaryRestrictions?: string[]
-    medications?: string[]
+    medications?: unknown
     conditions?: string[]
     physicianName?: string
     physicianPhone?: string
@@ -34,6 +34,32 @@ type CamperDoc = {
     insuranceCardPath?: string
   }
 }
+
+type MedicationEntry = {
+  name: string
+  dosage: string
+  times: {
+    breakfast: boolean
+    lunch: boolean
+    dinner: boolean
+    beforeBed: boolean
+    other: boolean
+    otherText?: string
+  }
+}
+
+const emptyMedication = (): MedicationEntry => ({
+  name: '',
+  dosage: '',
+  times: {
+    breakfast: false,
+    lunch: false,
+    dinner: false,
+    beforeBed: false,
+    other: false,
+    otherText: '',
+  },
+})
 
 export default function RegistrationForms() {
   const { year, gender, sessionId, regId } = useParams()
@@ -61,7 +87,7 @@ export default function RegistrationForms() {
   // Health
   const [allergies, setAllergies] = useState<string[]>([])
   const [dietary, setDietary] = useState<string[]>([])
-  const [medications, setMedications] = useState<string[]>([])
+  const [medications, setMedications] = useState<MedicationEntry[]>([])
   const [conditions, setConditions] = useState<string[]>([])
   const [physicianName, setPhysicianName] = useState('')
   const [physicianPhone, setPhysicianPhone] = useState('')
@@ -121,7 +147,38 @@ export default function RegistrationForms() {
           const m = c.medicalInfo || {}
           setAllergies(Array.isArray(m.allergies) ? m.allergies : [])
           setDietary(Array.isArray(m.dietaryRestrictions) ? m.dietaryRestrictions : [])
-          setMedications(Array.isArray(m.medications) ? m.medications : [])
+          const medsRaw = (m as any).medications
+          let meds: MedicationEntry[] = []
+          if (Array.isArray(medsRaw)) {
+            if (medsRaw.length && typeof medsRaw[0] === 'string') {
+              meds = (medsRaw as string[]).map(s => ({
+                name: s,
+                dosage: '',
+                times: {
+                  breakfast: false,
+                  lunch: false,
+                  dinner: false,
+                  beforeBed: false,
+                  other: false,
+                  otherText: '',
+                },
+              }))
+            } else {
+              meds = (medsRaw as any[]).map(it => ({
+                name: String(it?.name ?? ''),
+                dosage: String(it?.dosage ?? ''),
+                times: {
+                  breakfast: Boolean(it?.times?.breakfast),
+                  lunch: Boolean(it?.times?.lunch),
+                  dinner: Boolean(it?.times?.dinner),
+                  beforeBed: Boolean(it?.times?.beforeBed),
+                  other: Boolean(it?.times?.other),
+                  otherText: typeof it?.times?.otherText === 'string' ? it.times.otherText : '',
+                },
+              }))
+            }
+          }
+          setMedications(meds)
           setConditions(Array.isArray(m.conditions) ? m.conditions : [])
           setPhysicianName(m.physicianName || '')
           setPhysicianPhone(m.physicianPhone || '')
@@ -371,12 +428,7 @@ export default function RegistrationForms() {
 
           <MultiList title="Allergies" items={allergies} setItems={setAllergies} />
           <MultiList title="Dietary Restrictions" items={dietary} setItems={setDietary} />
-          <MultiList
-            title="Medications"
-            items={medications}
-            setItems={setMedications}
-            placeholder="Name, dosage, frequency"
-          />
+          <MedicationList meds={medications} setMeds={setMedications} />
           <MultiList title="Medical Conditions" items={conditions} setItems={setConditions} />
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -486,6 +538,105 @@ function MultiList({
       ))}
       <div style={{ marginTop: 6 }}>
         <button onClick={() => setItems([...items, ''])}>Add</button>
+      </div>
+    </div>
+  )
+}
+
+function MedicationList({
+  meds,
+  setMeds,
+}: {
+  meds: MedicationEntry[]
+  setMeds: (v: MedicationEntry[]) => void
+}) {
+  const update = (i: number, next: Partial<MedicationEntry>) => {
+    const copy = meds.slice()
+    copy[i] = { ...copy[i], ...next, times: { ...copy[i].times, ...(next as any).times } }
+    setMeds(copy)
+  }
+  return (
+    <div style={{ marginTop: 8 }}>
+      <strong>Medications</strong>
+      {meds.map((m, i) => (
+        <div
+          key={i}
+          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}
+        >
+          <label>
+            Name
+            <input value={m.name} onChange={e => update(i, { name: e.target.value })} />
+          </label>
+          <label>
+            Dosage
+            <input value={m.dosage} onChange={e => update(i, { dosage: e.target.value })} />
+          </label>
+          <div style={{ gridColumn: '1 / span 2' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <input
+                  type="checkbox"
+                  checked={m.times.breakfast}
+                  onChange={e => update(i, { times: { breakfast: e.target.checked } as any })}
+                />{' '}
+                Breakfast
+              </label>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <input
+                  type="checkbox"
+                  checked={m.times.lunch}
+                  onChange={e => update(i, { times: { lunch: e.target.checked } as any })}
+                />{' '}
+                Lunch
+              </label>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <input
+                  type="checkbox"
+                  checked={m.times.dinner}
+                  onChange={e => update(i, { times: { dinner: e.target.checked } as any })}
+                />{' '}
+                Dinner
+              </label>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <input
+                  type="checkbox"
+                  checked={m.times.beforeBed}
+                  onChange={e => update(i, { times: { beforeBed: e.target.checked } as any })}
+                />{' '}
+                Before Bed
+              </label>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <input
+                  type="checkbox"
+                  checked={m.times.other}
+                  onChange={e => update(i, { times: { other: e.target.checked } as any })}
+                />{' '}
+                Other
+              </label>
+              {m.times.other && (
+                <input
+                  placeholder="Specify other time"
+                  value={m.times.otherText || ''}
+                  onChange={e => update(i, { times: { otherText: e.target.value } as any })}
+                />
+              )}
+            </div>
+          </div>
+          <div style={{ gridColumn: '1 / span 2' }}>
+            <button
+              onClick={() => {
+                const copy = meds.slice()
+                copy.splice(i, 1)
+                setMeds(copy.length ? copy : [emptyMedication()])
+              }}
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+      ))}
+      <div style={{ marginTop: 6 }}>
+        <button onClick={() => setMeds([...meds, emptyMedication()])}>Add Medication</button>
       </div>
     </div>
   )
