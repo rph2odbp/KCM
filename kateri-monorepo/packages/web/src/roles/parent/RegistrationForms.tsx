@@ -11,6 +11,30 @@ type SecondGuardian = {
   address: string
 }
 
+type CamperDoc = {
+  school?: string
+  photoPath?: string
+  emergencyContacts?: Array<{
+    name: string
+    relationship: string
+    phoneNumber: string
+    email?: string
+  }>
+  medicalInfo?: {
+    allergies?: string[]
+    dietaryRestrictions?: string[]
+    medications?: string[]
+    conditions?: string[]
+    physicianName?: string
+    physicianPhone?: string
+    insuranceProvider?: string
+    policyNumber?: string
+    canSwim?: boolean
+    allowSunscreen?: boolean
+    insuranceCardPath?: string
+  }
+}
+
 export default function RegistrationForms() {
   const { year, gender, sessionId, regId } = useParams()
   const user = auth.currentUser
@@ -72,7 +96,8 @@ export default function RegistrationForms() {
         // 2) Load user (for second guardian)
         const uRef = doc(db, 'users', user.uid)
         const uSnap = await getDoc(uRef)
-        const ug = (uSnap.exists() ? (uSnap.data() as any).secondGuardian : undefined) as
+        type UserDoc = { secondGuardian?: Partial<SecondGuardian> }
+        const ug = (uSnap.exists() ? (uSnap.data() as UserDoc).secondGuardian : undefined) as
           | SecondGuardian
           | undefined
         if (ug) {
@@ -84,7 +109,7 @@ export default function RegistrationForms() {
         const cRef = doc(db, 'campers', r.camperId)
         const cSnap = await getDoc(cRef)
         if (cSnap.exists()) {
-          const c = cSnap.data() as any
+          const c = cSnap.data() as Partial<CamperDoc>
           setSchool(c.school || '')
           setPhotoPath(c.photoPath || '')
           const ec = Array.isArray(c.emergencyContacts) ? c.emergencyContacts : []
