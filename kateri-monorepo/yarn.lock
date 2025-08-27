@@ -1994,7 +1994,7 @@ __metadata:
     cors: "npm:^2.8.5"
     firebase-admin: "npm:^13.4.0"
     firebase-functions: "npm:^6.4.0"
-    google-auth-library: "npm:^9.14.3"
+    google-auth-library: "npm:^10.3.0"
     typescript: "npm:^5.3.3"
     vitest: "npm:^1.6.0"
   languageName: unknown
@@ -7482,7 +7482,22 @@ __metadata:
   languageName: node
   linkType: hard
 
-"google-auth-library@npm:^9.11.0, google-auth-library@npm:^9.14.2, google-auth-library@npm:^9.14.3, google-auth-library@npm:^9.3.0, google-auth-library@npm:^9.6.3":
+"google-auth-library@npm:^10.3.0":
+  version: 10.3.0
+  resolution: "google-auth-library@npm:10.3.0"
+  dependencies:
+    base64-js: "npm:^1.3.0"
+    ecdsa-sig-formatter: "npm:^1.0.11"
+    gaxios: "npm:^7.0.0"
+    gcp-metadata: "npm:^7.0.0"
+    google-logging-utils: "npm:^1.0.0"
+    gtoken: "npm:^8.0.0"
+    jws: "npm:^4.0.0"
+  checksum: 10c0/7500ee430025bbc6435094e3147767d296d2e669bb7414b44d1771046bff4bd2de684364f8c52b47e90ab88a6ea3b55ff4202397474a40ccb85a02d06edaa652
+  languageName: node
+  linkType: hard
+
+"google-auth-library@npm:^9.11.0, google-auth-library@npm:^9.14.2, google-auth-library@npm:^9.3.0, google-auth-library@npm:^9.6.3":
   version: 9.15.1
   resolution: "google-auth-library@npm:9.15.1"
   dependencies:
